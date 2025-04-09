@@ -1,50 +1,71 @@
 //! By convention, main.zig is where your main function lives in the case that
 //! you are building an executable. If you are making a library, the convention
 //! is to delete this file and start with root.zig instead.
+
 const std = @import("std");
 const c = @import("./c.zig");
 
-var window_width: c_int = 800.0;
-var window_height: c_int = 600.0;
-var mouse_x: f64 = 1.0;
-var mouse_y: f64 = 1.0;
-var vao: c_uint = undefined;
-var vbo: c_uint = undefined;
+const basic_vertex_shader_source = @embedFile("./shader/basic.vertex.glsl");
+const solid_fragment_shader_source = @embedFile("./shader/red.fragment.glsl");
+// 1) create a triangle using pixelspace that is solid color
+// 2) make a gradient using vector interpolation
+var renderer: Renderer = undefined;
 
-const shader_vertex_source = @embedFile("./shader/vertex.glsl");
-const shader_fragment_source = @embedFile("./shader/fragment.glsl");
+pub const Renderer = struct {
+    u_window: c_int,
+    window_width: c_int = 0,
+    window_height: c_int = 0,
 
-fn debug_state() void {
-    std.debug.print("(window {d}w {d}h) (mouse {d}x {d}y)\r", .{ window_width, window_height, mouse_x, mouse_y });
-}
+    shape_vao: c_uint,
+    shape_vbo: c_uint,
+    fill_shader: c_uint,
 
-fn framebuffer_resize_callback(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
-    c.glViewport(0, 0, width, height);
-    window_width = width;
-    window_height = height;
-}
+    pub fn init() !Renderer {
+        var shape_vao: c_uint = undefined;
+        var shape_vbo: c_uint = undefined;
+        c.glCreateVertexArrays(1, &shape_vao);
+        c.glGenBuffers(1, &shape_vbo);
 
-fn mouse_update(window: ?*c.GLFWwindow) void {
-    c.glfwGetCursorPos(window, &mouse_x, &mouse_y);
+        c.glBindVertexArray(shape_vao);
+        c.glBindBuffer(c.GL_ARRAY_BUFFER, shape_vbo);
+        c.glVertexAttribPointer(0, 2, c.GL_FLOAT, c.GL_FALSE, 2 * @sizeOf(f32), @ptrCast(&0));
+        c.glEnableVertexAttribArray(0);
 
-    const width: f64 = @as(f64, @floatFromInt(window_width));
-    const height: f64 = @as(f64, @floatFromInt(window_height));
+        const fill_shader = try shader_program_create(basic_vertex_shader_source, solid_fragment_shader_source);
+        const u_window = c.glGetUniformLocation(fill_shader, "u_window");
 
-    if (mouse_x < 0) {
-        mouse_x = 0;
+        return .{
+            .shape_vao = shape_vao,
+            .shape_vbo = shape_vbo,
+            .fill_shader = fill_shader,
+            .u_window = u_window,
+        };
     }
-    if (mouse_x > width) {
-        mouse_x = width;
-    }
-    if (mouse_y < 0) {
-        mouse_y = 0;
-    }
-    if (mouse_y > height) {
-        mouse_y = height;
-    }
-}
 
-fn shader_compile(shader_type: c.GLenum, source: []const u8) !c.GLuint {
+    pub fn deinit(self: *Renderer) void {
+        c.glDeleteBuffers(1, &self.shape_vbo);
+        c.glDeleteVertexArrays(1, &self.shape_vao);
+        c.glDeleteProgram(self.fill_shader);
+    }
+
+    pub fn begin(self: *Renderer) void {
+        c.glUseProgram(self.fill_shader);
+        c.glBindVertexArray(self.shape_vao);
+        c.glBindBuffer(c.GL_ARRAY_BUFFER, self.shape_vbo);
+        c.glUniform2f(self.u_window, @floatFromInt(self.window_width), @floatFromInt(self.window_height));
+    }
+
+    pub fn end(_: *Renderer) void {
+        c.glUseProgram(0);
+        c.glBindVertexArray(0);
+    }
+
+    pub fn vertex_data_set(_: *Renderer, vertex_data: []const f32) void {
+        c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(vertex_data.len * @sizeOf(f32)), @ptrCast(vertex_data.ptr), c.GL_DYNAMIC_DRAW);
+    }
+};
+
+pub fn shader_compile(shader_type: c.GLenum, source: []const u8) !c.GLuint {
     if (!(shader_type == c.GL_FRAGMENT_SHADER or shader_type == c.GL_VERTEX_SHADER)) {
         @panic("shader_type not supported");
     }
@@ -72,7 +93,7 @@ fn shader_compile(shader_type: c.GLenum, source: []const u8) !c.GLuint {
     return shader;
 }
 
-fn shader_program_create(vertex_source: []const u8, fragment_source: []const u8) !c.GLuint {
+pub fn shader_program_create(vertex_source: []const u8, fragment_source: []const u8) !c.GLuint {
     const vertex_shader = try shader_compile(c.GL_VERTEX_SHADER, vertex_source);
     defer c.glDeleteShader(vertex_shader);
     const fragment_shader = try shader_compile(c.GL_FRAGMENT_SHADER, fragment_source);
@@ -96,88 +117,117 @@ fn shader_program_create(vertex_source: []const u8, fragment_source: []const u8)
     return shader_program;
 }
 
-/// set GL_ARRAY_BUFFER to a big triangle centerd on the screen using x,y pixel cordinates
-/// based on window_width and window_height
-fn triangle_vertex_data_set() void {
-    const y1: f32 = @as(f32, @floatFromInt(window_height)) * 0.2;
-    const y2: f32 = @as(f32, @floatFromInt(window_height)) * 0.8;
+fn framebuffer_resize_callback(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
+    c.glViewport(0, 0, width, height);
+    renderer.window_width = width;
+    renderer.window_height = height;
+    std.debug.print("window: {d}w {d}h\n", .{ width, height });
+}
 
-    const x1: f32 = @as(f32, @floatFromInt(window_width)) * 0.5;
-    const x2: f32 = @as(f32, @floatFromInt(window_width)) * 0.2;
-    const x3: f32 = @as(f32, @floatFromInt(window_width)) * 0.8;
-    const vertex_data: [6]f32 = .{
+pub fn draw_rect(x: f32, y: f32, width: f32, height: f32) void {
+    const x0 = x;
+    const y0 = y;
+    const x1 = x + width;
+    const y1 = y + height;
+
+    const vertex_data: [12]f32 = .{
+        x0, y0,
+        x1, y0,
+        x0, y1,
+
+        x0, y1,
+        x1, y0,
         x1, y1,
-        x2, y2,
-        x3, y2,
     };
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, vbo);
-    c.glBufferData(c.GL_ARRAY_BUFFER, vertex_data.len * @sizeOf(f32), &vertex_data, c.GL_DYNAMIC_DRAW);
+
+    renderer.begin();
+    renderer.vertex_data_set(vertex_data[0..]);
+    c.glDrawArrays(c.GL_TRIANGLES, 0, 6);
+    renderer.end();
 }
 
 pub fn main() !void {
+    var win_width: c_int = undefined;
+    var win_height: c_int = undefined;
+    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
+    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
     if (c.glfwInit() == c.GLFW_FALSE) {
-        @panic("glfw failed to init");
+        std.debug.print("fuck glfw failed\n", .{});
+        return;
     }
     defer c.glfwTerminate();
+
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 3);
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
 
-    const window = c.glfwCreateWindow(window_width, window_height, "DEMO", null, null);
+    const window = c.glfwCreateWindow(800, 600, "triangle", null, null);
     if (window == null) {
-        @panic("glfw failed to create window");
+        std.debug.print("fuck glfw window craete failed\n", .{});
+        c.glfwTerminate();
+        return;
     }
     c.glfwMakeContextCurrent(window);
 
-    // set viewport
-    framebuffer_resize_callback(window, window_width, window_height);
+    renderer = try Renderer.init();
+
+    c.glViewport(0, 0, 800, 600);
     _ = c.glfwSetFramebufferSizeCallback(window, &framebuffer_resize_callback);
 
+    // const triangle: [6]f32 = .{
+    //     -0.5, -0.5,
+    //     0.5,  -0.5,
+    //     0.0,  0.5,
+    // };
+
+    const triangle: [6]f32 = .{
+        100.0, 100.0,
+        200.0, 200.0,
+        50.0,  300.0,
+    };
+
+    var vao: c_uint = undefined;
+    var vbo: c_uint = undefined;
     c.glGenVertexArrays(1, @ptrCast(&vao));
     c.glGenBuffers(1, @ptrCast(&vbo));
-
-    // bind vao
     c.glBindVertexArray(vao);
-    // bind vbo and set vertex data
-    triangle_vertex_data_set();
-    // set vertex attrib for location 0
+    c.glBindBuffer(c.GL_ARRAY_BUFFER, vbo);
+    c.glBufferData(c.GL_ARRAY_BUFFER, triangle.len * @sizeOf(f32), &triangle, c.GL_STATIC_DRAW);
     c.glVertexAttribPointer(0, 2, c.GL_FLOAT, c.GL_FALSE, 2 * @sizeOf(f32), @ptrCast(&0));
     c.glEnableVertexAttribArray(0);
-
-    // unbind vbo and vao
     c.glBindBuffer(c.GL_ARRAY_BUFFER, 0);
     c.glBindVertexArray(0);
 
-    // create shader program and get uniform locations
-    const shader_program = try shader_program_create(shader_vertex_source, shader_fragment_source);
+    const shader_program = try shader_program_create(basic_vertex_shader_source, solid_fragment_shader_source);
     defer c.glDeleteProgram(shader_program);
     const u_window = c.glGetUniformLocation(shader_program, "u_window");
-    const u_color = c.glGetUniformLocation(shader_program, "u_color");
+
+    var last_time = c.glfwGetTime();
+
+    var x: f32 = 0.0;
+    var y: f32 = 0.0;
+    const speed = 120;
 
     while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
-        // get glfw state
-        mouse_update(window);
+        const current_time = c.glfwGetTime();
+        const delta_time: f32 = @floatCast(current_time - last_time);
+        last_time = current_time;
+        c.glfwGetWindowSize(window, @ptrCast(&win_width), @ptrCast(&win_height));
+
+        x = x + (speed * delta_time);
+        y = y + (speed * delta_time);
 
         c.glClearColor(0.0, 0.0, 0.0, 1.0);
         c.glClear(c.GL_COLOR_BUFFER_BIT);
 
-        // select shader
         c.glUseProgram(shader_program);
-        // set uniforms
-        c.glUniform2f(u_window, @floatFromInt(window_width), @floatFromInt(window_height));
-        const color_r: f32 = @as(f32, @floatCast(mouse_x)) / @as(f32, @floatFromInt(window_width));
-        const color_g: f32 = @as(f32, @floatCast(mouse_y)) / @as(f32, @floatFromInt(window_height));
-        const color_b: f32 = 1.0 - (color_r + color_g / 2.0);
-        c.glUniform3f(u_color, color_r, color_g, color_b);
-        // bind vao
+        c.glUniform2f(u_window, @floatFromInt(win_width), @floatFromInt(win_height));
         c.glBindVertexArray(vao);
-        // update GL_ARRAY_BUFFER
-        triangle_vertex_data_set();
-        // draw triangle
         c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
+
+        draw_rect(x, y, 100.0, 200.0);
 
         c.glfwSwapBuffers(window);
         c.glfwPollEvents();
-        debug_state();
     }
 }
