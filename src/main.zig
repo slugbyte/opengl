@@ -4,44 +4,11 @@
 const std = @import("std");
 const c = @import("./c.zig");
 
-var window_width: c_int = 800.0;
-var window_height: c_int = 600.0;
-var mouse_x: f64 = 1.0;
-var mouse_y: f64 = 1.0;
-var vao: c_uint = undefined;
-var vbo: c_uint = undefined;
-
 const shader_vertex_source = @embedFile("./shader/vertex.glsl");
 const shader_fragment_source = @embedFile("./shader/fragment.glsl");
 
-fn debug_state() void {
-    std.debug.print("(window {d}w {d}h) (mouse {d}x {d}y)\r", .{ window_width, window_height, mouse_x, mouse_y });
-}
-
-fn framebuffer_resize_callback(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
+fn resize_callback(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
     c.glViewport(0, 0, width, height);
-    window_width = width;
-    window_height = height;
-}
-
-fn mouse_update(window: ?*c.GLFWwindow) void {
-    c.glfwGetCursorPos(window, &mouse_x, &mouse_y);
-
-    const width: f64 = @as(f64, @floatFromInt(window_width));
-    const height: f64 = @as(f64, @floatFromInt(window_height));
-
-    if (mouse_x < 0) {
-        mouse_x = 0;
-    }
-    if (mouse_x > width) {
-        mouse_x = width;
-    }
-    if (mouse_y < 0) {
-        mouse_y = 0;
-    }
-    if (mouse_y > height) {
-        mouse_y = height;
-    }
 }
 
 fn shader_compile(shader_type: c.GLenum, source: []const u8) !c.GLuint {
@@ -96,24 +63,6 @@ fn shader_program_create(vertex_source: []const u8, fragment_source: []const u8)
     return shader_program;
 }
 
-/// set GL_ARRAY_BUFFER to a big triangle centerd on the screen using x,y pixel cordinates
-/// based on window_width and window_height
-fn triangle_vertex_data_set() void {
-    const y1: f32 = @as(f32, @floatFromInt(window_height)) * 0.2;
-    const y2: f32 = @as(f32, @floatFromInt(window_height)) * 0.8;
-
-    const x1: f32 = @as(f32, @floatFromInt(window_width)) * 0.5;
-    const x2: f32 = @as(f32, @floatFromInt(window_width)) * 0.2;
-    const x3: f32 = @as(f32, @floatFromInt(window_width)) * 0.8;
-    const vertex_data: [6]f32 = .{
-        x1, y1,
-        x2, y2,
-        x3, y2,
-    };
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, vbo);
-    c.glBufferData(c.GL_ARRAY_BUFFER, vertex_data.len * @sizeOf(f32), &vertex_data, c.GL_DYNAMIC_DRAW);
-}
-
 pub fn main() !void {
     if (c.glfwInit() == c.GLFW_FALSE) {
         @panic("glfw failed to init");
@@ -123,26 +72,41 @@ pub fn main() !void {
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
 
-    const window = c.glfwCreateWindow(window_width, window_height, "DEMO", null, null);
+    const window = c.glfwCreateWindow(800, 600, "DEMO", null, null);
     if (window == null) {
         @panic("glfw failed to create window");
     }
     c.glfwMakeContextCurrent(window);
 
-    // set viewport
-    framebuffer_resize_callback(window, window_width, window_height);
-    _ = c.glfwSetFramebufferSizeCallback(window, &framebuffer_resize_callback);
+    // set viewport and window resize callback
+    resize_callback(window, 800, 600);
+    _ = c.glfwSetFramebufferSizeCallback(window, &resize_callback);
 
+    // each vertex has (x, y, r, g, b)
+    const vertex_data: [15]f32 = .{
+        0.0,  0.5,  1.0, 0.0, 0.0,
+        0.5,  -0.5, 0.0, 1.0, 0.0,
+        -0.5, -0.5, 0.0, 0.0, 1.0,
+    };
+
+    // create vao and vbo
+    var vao: c_uint = undefined;
+    var vbo: c_uint = undefined;
     c.glGenVertexArrays(1, @ptrCast(&vao));
     c.glGenBuffers(1, @ptrCast(&vbo));
-
     // bind vao
     c.glBindVertexArray(vao);
     // bind vbo and set vertex data
-    triangle_vertex_data_set();
-    // set vertex attrib for location 0
-    c.glVertexAttribPointer(0, 2, c.GL_FLOAT, c.GL_FALSE, 2 * @sizeOf(f32), @ptrCast(&0));
+    c.glBindBuffer(c.GL_ARRAY_BUFFER, vbo);
+    c.glBufferData(c.GL_ARRAY_BUFFER, vertex_data.len * @sizeOf(f32), @ptrCast(&vertex_data), c.GL_STATIC_DRAW);
+
+    // set vertex attrib for location 0 (vec2 aPos)
+    c.glVertexAttribPointer(0, 2, c.GL_FLOAT, c.GL_FALSE, 5 * @sizeOf(f32), @ptrFromInt(0));
     c.glEnableVertexAttribArray(0);
+
+    // set vertex attrib for location 1 (vec3 aColor)
+    c.glVertexAttribPointer(1, 3, c.GL_FLOAT, c.GL_FALSE, 5 * @sizeOf(f32), @ptrFromInt(2 * @sizeOf(f32)));
+    c.glEnableVertexAttribArray(1);
 
     // unbind vbo and vao
     c.glBindBuffer(c.GL_ARRAY_BUFFER, 0);
@@ -151,33 +115,19 @@ pub fn main() !void {
     // create shader program and get uniform locations
     const shader_program = try shader_program_create(shader_vertex_source, shader_fragment_source);
     defer c.glDeleteProgram(shader_program);
-    const u_window = c.glGetUniformLocation(shader_program, "u_window");
-    const u_color = c.glGetUniformLocation(shader_program, "u_color");
 
     while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
-        // get glfw state
-        mouse_update(window);
-
         c.glClearColor(0.0, 0.0, 0.0, 1.0);
         c.glClear(c.GL_COLOR_BUFFER_BIT);
 
         // select shader
         c.glUseProgram(shader_program);
-        // set uniforms
-        c.glUniform2f(u_window, @floatFromInt(window_width), @floatFromInt(window_height));
-        const color_r: f32 = @as(f32, @floatCast(mouse_x)) / @as(f32, @floatFromInt(window_width));
-        const color_g: f32 = @as(f32, @floatCast(mouse_y)) / @as(f32, @floatFromInt(window_height));
-        const color_b: f32 = 1.0 - (color_r + color_g / 2.0);
-        c.glUniform3f(u_color, color_r, color_g, color_b);
         // bind vao
         c.glBindVertexArray(vao);
-        // update GL_ARRAY_BUFFER
-        triangle_vertex_data_set();
         // draw triangle
         c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
 
         c.glfwSwapBuffers(window);
         c.glfwPollEvents();
-        debug_state();
     }
 }
