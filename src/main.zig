@@ -146,6 +146,42 @@ pub fn draw_rect(x: f32, y: f32, width: f32, height: f32) void {
     renderer.end();
 }
 
+const DVD = struct {
+    const dvd_width = 50;
+    const dvd_height = 50;
+
+    x: f32 = 0,
+    y: f32 = 0,
+
+    x_direction: f32 = 250,
+    y_direction: f32 = 250,
+
+    fn update(self: *DVD, dt: f32) void {
+        const x_border: f32 = @as(f32, @floatFromInt(renderer.window_width));
+        const y_border: f32 = @as(f32, @floatFromInt(renderer.window_height));
+
+        // update direction
+        if (self.x + dvd_width > x_border or self.x < 0) {
+            self.x_direction = -1 * self.x_direction;
+        }
+
+        if (self.y + dvd_height > y_border or self.y < 0) {
+            self.y_direction = -1 * self.y_direction;
+        }
+
+        self.x = self.x + (dt * self.x_direction);
+        self.y = self.y + (dt * self.y_direction);
+
+        // if (self.x + dvd_width > @as(f32, @floatFromInt(renderer.window_width)) or self.x < 0) {
+        //     self.x = 0;
+        // }
+
+        // if (self.y + dvd_height > @as(f32, @floatFromInt(renderer.window_height)) or self.y < 0) {
+        //     self.y = 0;
+        // }
+    }
+};
+
 pub fn main() !void {
     var win_width: c_int = undefined;
     var win_height: c_int = undefined;
@@ -161,6 +197,8 @@ pub fn main() !void {
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
 
+    var dvd = DVD{};
+
     const window = c.glfwCreateWindow(800, 600, "triangle", null, null);
     if (window == null) {
         std.debug.print("fuck glfw window craete failed\n", .{});
@@ -174,41 +212,15 @@ pub fn main() !void {
     c.glViewport(0, 0, 800, 600);
     _ = c.glfwSetFramebufferSizeCallback(window, &framebuffer_resize_callback);
 
-    // const triangle: [6]f32 = .{
-    //     -0.5, -0.5,
-    //     0.5,  -0.5,
-    //     0.0,  0.5,
-    // };
-
-    const triangle: [6]f32 = .{
-        100.0, 100.0,
-        200.0, 200.0,
-        50.0,  300.0,
-    };
-
-    var vao: c_uint = undefined;
-    var vbo: c_uint = undefined;
-    c.glGenVertexArrays(1, @ptrCast(&vao));
-    c.glGenBuffers(1, @ptrCast(&vbo));
-    c.glBindVertexArray(vao);
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, vbo);
-    c.glBufferData(c.GL_ARRAY_BUFFER, triangle.len * @sizeOf(f32), &triangle, c.GL_STATIC_DRAW);
-    c.glVertexAttribPointer(0, 2, c.GL_FLOAT, c.GL_FALSE, 2 * @sizeOf(f32), @ptrCast(&0));
-    c.glEnableVertexAttribArray(0);
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, 0);
-    c.glBindVertexArray(0);
-
-    const shader_program = try shader_program_create(basic_vertex_shader_source, solid_fragment_shader_source);
-    defer c.glDeleteProgram(shader_program);
-    const u_window = c.glGetUniformLocation(shader_program, "u_window");
-
-    var last_time = c.glfwGetTime();
-
     var x: f32 = 0.0;
     var y: f32 = 0.0;
     const speed = 120;
+    var last_time = c.glfwGetTime();
 
     while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
+        c.glClearColor(0.0, 0.0, 0.0, 1.0);
+        c.glClear(c.GL_COLOR_BUFFER_BIT);
+
         const current_time = c.glfwGetTime();
         const delta_time: f32 = @floatCast(current_time - last_time);
         last_time = current_time;
@@ -217,15 +229,10 @@ pub fn main() !void {
         x = x + (speed * delta_time);
         y = y + (speed * delta_time);
 
-        c.glClearColor(0.0, 0.0, 0.0, 1.0);
-        c.glClear(c.GL_COLOR_BUFFER_BIT);
-
-        c.glUseProgram(shader_program);
-        c.glUniform2f(u_window, @floatFromInt(win_width), @floatFromInt(win_height));
-        c.glBindVertexArray(vao);
-        c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
-
-        draw_rect(x, y, 100.0, 200.0);
+        renderer.begin();
+        dvd.update(delta_time);
+        draw_rect(dvd.x, dvd.y, DVD.dvd_width, DVD.dvd_height);
+        renderer.end();
 
         c.glfwSwapBuffers(window);
         c.glfwPollEvents();
