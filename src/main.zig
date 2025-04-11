@@ -7,34 +7,42 @@ const c = @import("./c.zig");
 
 const VertexBuffer = std.ArrayList(f32);
 
-const basic_vertex_shader_source = @embedFile("./shader/basic.vertex.glsl");
-const solid_fragment_shader_source = @embedFile("./shader/red.fragment.glsl");
+const shader_vertex_source = @embedFile("./shader/vertex.glsl");
+const shader_fragment_source = @embedFile("./shader/fragment.glsl");
 // 1) create a triangle using pixelspace that is solid color
 // 2) make a gradient using vector interpolation
 var renderer: Renderer = undefined;
+var rand: std.Random = undefined;
 
 pub const Color = struct {
     r: u8 = 0,
     g: u8 = 0,
     b: u8 = 0,
 
+    pub inline fn gl_r(self: *const Color) f32 {
+        return @as(f32, @floatFromInt(self.r)) / 255.0;
+    }
+    pub inline fn gl_g(self: *const Color) f32 {
+        return @as(f32, @floatFromInt(self.g)) / 255.0;
+    }
+    pub inline fn gl_b(self: *const Color) f32 {
+        return @as(f32, @floatFromInt(self.b)) / 255.0;
+    }
+
+    pub fn gray(value: u8) Color {
+        return Color{
+            .r = value,
+            .g = value,
+            .b = value,
+        };
+    }
     const White = Color{
         .r = 255,
         .g = 255,
         .b = 255,
     };
 
-    const Blue = Color{
-        .r = 0,
-        .g = 0,
-        .b = 255,
-    };
-
-    const Green = Color{
-        .r = 0,
-        .g = 255,
-        .b = 0,
-    };
+    const Black = Color{};
 };
 
 pub const Renderer = struct {
@@ -46,6 +54,9 @@ pub const Renderer = struct {
     fill_shader: c_uint,
     vertex_count: u32 = 0,
     vertex_buffer: VertexBuffer,
+
+    time_last: i32 = 0,
+    time_delta: i32 = 0,
 
     pub fn init(allocator: std.mem.Allocator) !Renderer {
         var vao: c_uint = undefined;
@@ -62,7 +73,7 @@ pub const Renderer = struct {
         c.glVertexAttribPointer(1, 3, c.GL_FLOAT, c.GL_FALSE, 5 * @sizeOf(f32), @ptrFromInt(2 * @sizeOf(f32)));
         c.glEnableVertexAttribArray(1);
 
-        const fill_shader = try shader_program_create(basic_vertex_shader_source, solid_fragment_shader_source);
+        const fill_shader = try shader_program_create(shader_vertex_source, shader_fragment_source);
         const u_window = c.glGetUniformLocation(fill_shader, "u_window");
 
         return .{
@@ -80,15 +91,26 @@ pub const Renderer = struct {
         c.glDeleteProgram(self.fill_shader);
     }
 
+    pub fn time_update(self: *Renderer) void {
+        const time_current: i32 = @intFromFloat(c.glfwGetTime() * 100.0);
+        self.time_delta = time_current - self.time_last;
+        self.time_last = time_current;
+    }
+
+    pub fn clear_window(_: *Renderer, color: Color) void {
+        c.glClearColor(color.gl_r(), color.gl_g(), color.gl_b(), 1.0);
+        c.glClear(c.GL_COLOR_BUFFER_BIT);
+    }
+
     pub fn draw_rect(self: *Renderer, x: i32, y: i32, width: i32, height: i32, color: Color) !void {
         const x0: f32 = @floatFromInt(x);
         const y0: f32 = @floatFromInt(y);
         const x1: f32 = @floatFromInt(x + width);
         const y1: f32 = @floatFromInt(y + height);
 
-        const r: f32 = @floatFromInt(color.r);
-        const g: f32 = @floatFromInt(color.g);
-        const b: f32 = @floatFromInt(color.b);
+        const r: f32 = color.gl_r();
+        const g: f32 = color.gl_g();
+        const b: f32 = color.gl_b();
         const vertex_data: [30]f32 = .{
             x0, y0, r, g, b,
             x1, y0, r, g, b,
@@ -103,14 +125,14 @@ pub const Renderer = struct {
     }
 
     pub fn begin(self: *Renderer) void {
-        self.vertex_count = 0;
         c.glUseProgram(self.fill_shader);
         c.glBindVertexArray(self.vao);
-        c.glBindBuffer(c.GL_ARRAY_BUFFER, self.vbo);
+        self.vertex_count = 0;
         c.glUniform2f(self.u_window, @floatFromInt(self.window_width), @floatFromInt(self.window_height));
     }
 
     pub fn end(self: *Renderer) void {
+        c.glUseProgram(self.fill_shader);
         c.glBindBuffer(c.GL_ARRAY_BUFFER, self.vbo);
         c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(self.vertex_buffer.items.len * @sizeOf(f32)), @ptrCast(self.vertex_buffer.items.ptr), c.GL_DYNAMIC_DRAW);
         c.glDrawArrays(c.GL_TRIANGLES, 0, @intCast(self.vertex_count));
@@ -186,40 +208,34 @@ fn framebuffer_resize_callback(_: ?*c.GLFWwindow, width: c_int, height: c_int) c
 }
 
 const DVD = struct {
-    const dvd_width = 50;
-    const dvd_height = 50;
+    width: i32 = 5,
+    height: i32 = 5,
 
-    x: f32 = 0,
-    y: f32 = 0,
+    x: i32 = 0,
+    y: i32 = 0,
 
-    x_direction: f32 = 250,
-    y_direction: f32 = 250,
+    x_direction: i32 = 5,
+    y_direction: i32 = 5,
+    color: Color = Color.White,
 
-    pub fn update(self: *DVD, dt: f32) void {
-        const x_border: f32 = @as(f32, @floatFromInt(renderer.window_width));
-        const y_border: f32 = @as(f32, @floatFromInt(renderer.window_height));
+    pub fn update(self: *DVD) void {
+        const x_border: i32 = @intCast(renderer.window_width);
+        const y_border: i32 = @intCast(renderer.window_height);
 
-        // update direction
-        if (self.x + dvd_width > x_border or self.x < 0) {
+        if (self.x + self.width > x_border or self.x < 0) {
             self.x_direction = -1 * self.x_direction;
         }
 
-        if (self.y + dvd_height > y_border or self.y < 0) {
+        if (self.y + self.height > y_border or self.y < 0) {
             self.y_direction = -1 * self.y_direction;
         }
 
-        self.x = self.x + (dt * self.x_direction);
-        self.y = self.y + (dt * self.y_direction);
+        self.x = self.x + self.x_direction;
+        self.y = self.y + self.y_direction;
     }
 
     pub fn render(self: *DVD) void {
-        renderer.draw_rect(@intFromFloat(self.x), @intFromFloat(self.y), @intFromFloat(DVD.dvd_width), @intFromFloat(DVD.dvd_height), Color.Green) catch {
-            @panic("unable to draw rect");
-        };
-        renderer.draw_rect(@intFromFloat(self.x + 200), @intFromFloat(self.y + 200), @intFromFloat(DVD.dvd_width), @intFromFloat(DVD.dvd_height), Color.White) catch {
-            @panic("unable to draw rect");
-        };
-        renderer.draw_rect(@intFromFloat(self.x + 200), @intFromFloat(self.y + 50), @intFromFloat(DVD.dvd_width), @intFromFloat(DVD.dvd_height), Color.Blue) catch {
+        renderer.draw_rect(self.x, self.y, self.width, self.height, self.color) catch {
             @panic("unable to draw rect");
         };
     }
@@ -229,8 +245,6 @@ pub fn main() !void {
     var debug_allocator = std.heap.DebugAllocator(.{}){};
     const allocator = debug_allocator.allocator();
 
-    var win_width: c_int = undefined;
-    var win_height: c_int = undefined;
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
     if (c.glfwInit() == c.GLFW_FALSE) {
@@ -243,8 +257,6 @@ pub fn main() !void {
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
 
-    var dvd = DVD{};
-
     const window = c.glfwCreateWindow(800, 600, "triangle", null, null);
     if (window == null) {
         std.debug.print("fuck glfw window craete failed\n", .{});
@@ -252,32 +264,41 @@ pub fn main() !void {
         return;
     }
     c.glfwMakeContextCurrent(window);
-
     renderer = try Renderer.init(allocator);
-
-    c.glViewport(0, 0, 800, 600);
+    framebuffer_resize_callback(window, 800, 600);
     _ = c.glfwSetFramebufferSizeCallback(window, &framebuffer_resize_callback);
 
-    var x: f32 = 0.0;
-    var y: f32 = 0.0;
-    const speed = 120;
-    var last_time = c.glfwGetTime();
+    var prng = std.Random.DefaultPrng.init(100);
+    rand = prng.random();
+    var dvd_list = std.ArrayList(DVD).init(allocator);
+    _ = rand.int(i32);
 
+    for (1..100000) |_| {
+        const gray = rand.int(u8);
+        const size = rand.intRangeLessThan(i32, 5, 10);
+        dvd_list.append(DVD{
+            .x = rand.intRangeLessThan(i32, 0, renderer.window_width),
+            .y = rand.intRangeLessThan(i32, 0, renderer.window_height),
+            .width = size,
+            .height = size,
+            .x_direction = rand.intRangeLessThan(i32, 5, 21),
+            .y_direction = rand.intRangeLessThan(i32, 5, 21),
+            .color = Color.gray(gray),
+        }) catch {
+            @panic("ut oh");
+        };
+    }
+
+    const color_bg = Color.gray(25);
     while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
-        c.glClearColor(0.0, 0.0, 0.0, 1.0);
-        c.glClear(c.GL_COLOR_BUFFER_BIT);
-
-        const current_time = c.glfwGetTime();
-        const delta_time: f32 = @floatCast(current_time - last_time);
-        last_time = current_time;
-        c.glfwGetWindowSize(window, @ptrCast(&win_width), @ptrCast(&win_height));
-
-        x = x + (speed * delta_time);
-        y = y + (speed * delta_time);
+        renderer.time_update();
+        renderer.clear_window(color_bg);
 
         renderer.begin();
-        dvd.update(delta_time);
-        dvd.render();
+        for (dvd_list.items) |*dvd_item| {
+            dvd_item.update();
+            dvd_item.render();
+        }
         renderer.end();
 
         c.glfwSwapBuffers(window);
