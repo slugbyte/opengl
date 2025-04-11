@@ -13,6 +13,7 @@ const shader_fragment_source = @embedFile("./shader/fragment.glsl");
 // 2) make a gradient using vector interpolation
 var renderer: Renderer = undefined;
 var rand: std.Random = undefined;
+var is_resize: bool = false;
 
 pub const Color = struct {
     r: u8 = 0,
@@ -67,11 +68,14 @@ pub const Renderer = struct {
         c.glBindVertexArray(vao);
         c.glBindBuffer(c.GL_ARRAY_BUFFER, vbo);
         // aPos x, y
-        c.glVertexAttribPointer(0, 2, c.GL_FLOAT, c.GL_FALSE, 5 * @sizeOf(f32), @ptrFromInt(0));
+        c.glVertexAttribPointer(0, 2, c.GL_FLOAT, c.GL_FALSE, 7 * @sizeOf(f32), @ptrFromInt(0));
         c.glEnableVertexAttribArray(0);
         // aColor rgb
-        c.glVertexAttribPointer(1, 3, c.GL_FLOAT, c.GL_FALSE, 5 * @sizeOf(f32), @ptrFromInt(2 * @sizeOf(f32)));
+        c.glVertexAttribPointer(1, 3, c.GL_FLOAT, c.GL_FALSE, 7 * @sizeOf(f32), @ptrFromInt(2 * @sizeOf(f32)));
         c.glEnableVertexAttribArray(1);
+        // aUV
+        c.glVertexAttribPointer(2, 2, c.GL_FLOAT, c.GL_FALSE, 7 * @sizeOf(f32), @ptrFromInt(5 * @sizeOf(f32)));
+        c.glEnableVertexAttribArray(2);
 
         const fill_shader = try shader_program_create(shader_vertex_source, shader_fragment_source);
         const u_window = c.glGetUniformLocation(fill_shader, "u_window");
@@ -92,7 +96,7 @@ pub const Renderer = struct {
     }
 
     pub fn time_update(self: *Renderer) void {
-        const time_current: i32 = @intFromFloat(c.glfwGetTime() * 100.0);
+        const time_current: i32 = @intFromFloat(c.glfwGetTime() * 1000.0);
         self.time_delta = time_current - self.time_last;
         self.time_last = time_current;
     }
@@ -102,7 +106,7 @@ pub const Renderer = struct {
         c.glClear(c.GL_COLOR_BUFFER_BIT);
     }
 
-    pub fn draw_rect(self: *Renderer, x: i32, y: i32, width: i32, height: i32, color: Color) !void {
+    pub fn draw_circle(self: *Renderer, x: i32, y: i32, width: i32, height: i32, color: Color) !void {
         const x0: f32 = @floatFromInt(x);
         const y0: f32 = @floatFromInt(y);
         const x1: f32 = @floatFromInt(x + width);
@@ -111,13 +115,13 @@ pub const Renderer = struct {
         const r: f32 = color.gl_r();
         const g: f32 = color.gl_g();
         const b: f32 = color.gl_b();
-        const vertex_data: [30]f32 = .{
-            x0, y0, r, g, b,
-            x1, y0, r, g, b,
-            x0, y1, r, g, b,
-            x0, y1, r, g, b,
-            x1, y0, r, g, b,
-            x1, y1, r, g, b,
+        const vertex_data: [42]f32 = .{
+            x0, y0, r, g, b, 0, 0,
+            x1, y0, r, g, b, 1, 0,
+            x0, y1, r, g, b, 0, 1,
+            x0, y1, r, g, b, 0, 1,
+            x1, y0, r, g, b, 1, 0,
+            x1, y1, r, g, b, 1, 1,
         };
 
         try self.vertex_buffer.appendSlice(&vertex_data);
@@ -204,21 +208,27 @@ fn framebuffer_resize_callback(_: ?*c.GLFWwindow, width: c_int, height: c_int) c
     c.glViewport(0, 0, width, height);
     renderer.window_width = width;
     renderer.window_height = height;
+    is_resize = true;
     std.debug.print("window: {d}w {d}h\n", .{ width, height });
 }
 
 const DVD = struct {
-    width: i32 = 5,
-    height: i32 = 5,
+    width: i32 = 100,
+    height: i32 = 100,
 
     x: i32 = 0,
     y: i32 = 0,
+    // is_visable: bool = false,
 
     x_direction: i32 = 5,
     y_direction: i32 = 5,
     color: Color = Color.White,
 
     pub fn update(self: *DVD) void {
+        if (is_resize) {
+            self.x = rand.intRangeLessThan(i32, 0, renderer.window_width);
+            self.y = rand.intRangeLessThan(i32, 0, renderer.window_height);
+        }
         const x_border: i32 = @intCast(renderer.window_width);
         const y_border: i32 = @intCast(renderer.window_height);
 
@@ -235,7 +245,7 @@ const DVD = struct {
     }
 
     pub fn render(self: *DVD) void {
-        renderer.draw_rect(self.x, self.y, self.width, self.height, self.color) catch {
+        renderer.draw_circle(self.x, self.y, self.width, self.height, self.color) catch {
             @panic("unable to draw rect");
         };
     }
@@ -257,7 +267,7 @@ pub fn main() !void {
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
 
-    const window = c.glfwCreateWindow(800, 600, "triangle", null, null);
+    const window = c.glfwCreateWindow(800, 600, "EMO", null, null);
     if (window == null) {
         std.debug.print("fuck glfw window craete failed\n", .{});
         c.glfwTerminate();
@@ -273,16 +283,18 @@ pub fn main() !void {
     var dvd_list = std.ArrayList(DVD).init(allocator);
     _ = rand.int(i32);
 
-    for (1..100000) |_| {
+    for (1..100) |_| {
         const gray = rand.int(u8);
         const size = rand.intRangeLessThan(i32, 5, 10);
+        const x_flip: i32 = if (rand.boolean()) -1 else 1;
+        const y_flip: i32 = if (rand.boolean()) -1 else 1;
         dvd_list.append(DVD{
             .x = rand.intRangeLessThan(i32, 0, renderer.window_width),
             .y = rand.intRangeLessThan(i32, 0, renderer.window_height),
             .width = size,
             .height = size,
-            .x_direction = rand.intRangeLessThan(i32, 5, 21),
-            .y_direction = rand.intRangeLessThan(i32, 5, 21),
+            .x_direction = rand.intRangeLessThan(i32, 2, 6) * x_flip,
+            .y_direction = rand.intRangeLessThan(i32, 2, 6) * y_flip,
             .color = Color.gray(gray),
         }) catch {
             @panic("ut oh");
@@ -290,9 +302,22 @@ pub fn main() !void {
     }
 
     const color_bg = Color.gray(25);
+    renderer.clear_window(color_bg);
+    var time_clear: i32 = 0;
+    var clear_count: u8 = 0;
     while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
         renderer.time_update();
-        renderer.clear_window(color_bg);
+        time_clear += renderer.time_delta;
+        if (time_clear > 2000) {
+            clear_count = 2;
+            time_clear = 0;
+        }
+
+        if (clear_count > 0) {
+            is_resize = true;
+            renderer.clear_window(color_bg);
+            clear_count -= 1;
+        }
 
         renderer.begin();
         for (dvd_list.items) |*dvd_item| {
@@ -300,6 +325,7 @@ pub fn main() !void {
             dvd_item.render();
         }
         renderer.end();
+        is_resize = false;
 
         c.glfwSwapBuffers(window);
         c.glfwPollEvents();
