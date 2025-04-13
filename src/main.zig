@@ -14,6 +14,7 @@ const Dot = @import("./Dot.zig");
 const shader_vertex_source = @embedFile("./shader/vertex.glsl");
 const shader_fragment_default_source = @embedFile("./shader/fragment_default.glsl");
 const shader_fragment_circle_source = @embedFile("./shader/fragment_circle.glsl");
+const shader_fragment_texture_source = @embedFile("./shader/fragment_texture.glsl");
 // 1) create a triangle using pixelspace that is solid color
 // 2) make a gradient using vector interpolation
 
@@ -65,35 +66,60 @@ pub fn main() !void {
     defer shader_default.deinit();
     var shader_circle = try Shader.init(.Circle, shader_vertex_source, shader_fragment_circle_source);
     defer shader_circle.deinit();
+    var shader_texture = try Shader.init(.Circle, shader_vertex_source, shader_fragment_texture_source);
+    defer shader_texture.deinit();
 
-    // const color_bg = Color.gray(25, 255);
+    const color_bg = Color.gray(25, 255);
     // const color_fg = Color.gray(240, 255);
     //
     var fbo: c_uint = undefined;
+    c.glGenFramebuffers(1, &fbo);
+    c.glBindFramebuffer(c.GL_FRAMEBUFFER, fbo);
+
     var tex: c_uint = undefined;
-    c.glCreateFramebuffers(1, &fbo);
-    c.glCreateTextures(1, ctx.window_width * ctx.window_height, &tex);
+    c.glGenTextures(1, &tex);
+    c.glBindTexture(c.GL_TEXTURE_2D, tex);
+    c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGB, ctx.window_width, ctx.window_height, 0, c.GL_RGB, c.GL_UNSIGNED_BYTE, null);
+    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_LINEAR);
+    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_LINEAR);
+    c.glFramebufferTexture2D(c.GL_FRAMEBUFFER, c.GL_COLOR_ATTACHMENT0, c.GL_TEXTURE_2D, tex, 0);
+
+    if (c.glCheckFramebufferStatus(c.GL_FRAMEBUFFER) != c.GL_FRAMEBUFFER_COMPLETE) {
+        @panic("framebuffer is not complete");
+    }
+    ctx.renderer.clear(color_bg);
+    c.glBindFramebuffer(c.GL_FRAMEBUFFER, 0);
 
     while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
         ctx.time_update();
+        ctx.renderer.clear(color_bg);
 
-        // ctx.renderer.blend_disable();
-        // try ctx.renderer.begin(shader_default);
-        // try ctx.renderer.draw_rect(10, 10, ctx.window_width - 20, @divFloor(ctx.window_height, 2), color_fg);
-        // try ctx.renderer.end();
-
-        if (ctx.window_width) {
-            c.glDeleteTextures(1, &tex);
-            c.glCreateTextures(1, ctx.window_width * ctx.window_height, &tex);
-            c.glFramebufferTexture(fbo, tex, ctx.window_width, ctx.window_height);
+        // render background to a texture
+        c.glBindFramebuffer(c.GL_FRAMEBUFFER, fbo);
+        ctx.renderer.blend_enable_alpha();
+        if (ctx.window_has_resized) {
+            c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGB, ctx.window_width, ctx.window_height, 0, c.GL_RGB, c.GL_UNSIGNED_BYTE, null);
+            ctx.renderer.clear(color_bg);
         }
 
         try ctx.renderer.begin(shader_circle);
-        ctx.renderer.blend_enable_alpha();
         for (dot_list.items) |*dot_item| {
             dot_item.update();
             try dot_item.render();
         }
+        try ctx.renderer.end();
+        try ctx.renderer.begin(shader_default);
+        for (dot_list.items) |*dot_item| {
+            dot_item.update();
+            try dot_item.render();
+        }
+        try ctx.renderer.end();
+        c.glBindFramebuffer(c.GL_FRAMEBUFFER, 0);
+
+        // render background texture to framebuffer
+        try ctx.renderer.begin(shader_texture);
+        try shader_texture.u_texture_set(0);
+        try ctx.renderer.draw_rect(0, 0, ctx.window_width, ctx.window_height, Color{});
         try ctx.renderer.end();
 
         // pallet

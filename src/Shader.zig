@@ -24,11 +24,13 @@ kind: Kind,
 
 u_window: ?c.GLint,
 u_color: ?c.GLint,
+u_texture: ?c.GLint,
 
 pub fn init(kind: Kind, vertex_source: []const u8, fragment_source: []const u8) ErrorShader!Shader {
     const program = try program_create(vertex_source, fragment_source);
     const u_window = try uniform_location(program, "u_window");
     const u_color = try uniform_location(program, "u_color");
+    const u_texture = try uniform_location(program, "u_texture");
 
     var vao: c.GLuint = undefined;
     c.glCreateVertexArrays(1, &vao);
@@ -51,6 +53,7 @@ pub fn init(kind: Kind, vertex_source: []const u8, fragment_source: []const u8) 
         .kind = kind,
         .u_window = u_window,
         .u_color = u_color,
+        .u_texture = u_texture,
     };
 }
 
@@ -72,6 +75,14 @@ pub fn use_none() void {
 pub fn u_window_set(self: *const Shader, width: i32, height: i32) ErrorShader!void {
     if (self.u_window) |u_window| {
         c.glUniform2f(u_window, @floatFromInt(width), @floatFromInt(height));
+    } else {
+        return ErrorShader.UWindowNotFound;
+    }
+}
+
+pub fn u_texture_set(self: *const Shader, location: i32) ErrorShader!void {
+    if (self.u_texture) |u_texture| {
+        c.glUniform1i(u_texture, location);
     } else {
         return ErrorShader.UWindowNotFound;
     }

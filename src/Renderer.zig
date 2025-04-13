@@ -70,12 +70,12 @@ pub fn draw_rect(self: *Renderer, x: i32, y: i32, width: i32, height: i32, color
     const a: f32 = color.gl_a();
     // x y r g b a u v
     const vertex_data: [48]f32 = .{
-        x0, y0, r, g, b, a, 0, 0,
-        x1, y0, r, g, b, a, 1, 0,
-        x0, y1, r, g, b, a, 0, 1,
-        x0, y1, r, g, b, a, 0, 1,
-        x1, y0, r, g, b, a, 1, 0,
-        x1, y1, r, g, b, a, 1, 1,
+        x0, y0, r, g, b, a, 1, 1,
+        x1, y0, r, g, b, a, 0, 1,
+        x0, y1, r, g, b, a, 1, 0,
+        x0, y1, r, g, b, a, 1, 0,
+        x1, y0, r, g, b, a, 0, 1,
+        x1, y1, r, g, b, a, 0, 0,
     };
 
     try self.vertex_buffer.appendSlice(&vertex_data);
