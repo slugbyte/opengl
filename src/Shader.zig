@@ -18,7 +18,7 @@ pub const Kind = enum {
     Quad,
 };
 
-id: c.GLuint,
+program: c.GLuint,
 vao: c.GLuint,
 kind: Kind,
 
@@ -26,25 +26,41 @@ u_window: ?c.GLint,
 u_color: ?c.GLint,
 
 pub fn init(kind: Kind, vertex_source: []const u8, fragment_source: []const u8) ErrorShader!Shader {
-    const id = try program_create(vertex_source, fragment_source);
+    const program = try program_create(vertex_source, fragment_source);
+    const u_window = try uniform_location(program, "u_window");
+    const u_color = try uniform_location(program, "u_color");
+
     var vao: c.GLuint = undefined;
     c.glCreateVertexArrays(1, &vao);
+    c.glBindVertexArray(vao);
+
+    c.glBindVertexArray(vao);
+    // aPos x, y
+    c.glVertexAttribPointer(0, 2, c.GL_FLOAT, c.GL_FALSE, 8 * @sizeOf(f32), @ptrFromInt(0));
+    c.glEnableVertexAttribArray(0);
+    // aColor rgb
+    c.glVertexAttribPointer(1, 4, c.GL_FLOAT, c.GL_FALSE, 8 * @sizeOf(f32), @ptrFromInt(2 * @sizeOf(f32)));
+    c.glEnableVertexAttribArray(1);
+    // aUV
+    c.glVertexAttribPointer(2, 2, c.GL_FLOAT, c.GL_FALSE, 8 * @sizeOf(f32), @ptrFromInt(6 * @sizeOf(f32)));
+    c.glEnableVertexAttribArray(2);
 
     return Shader{
-        .id = id,
+        .program = program,
         .vao = vao,
         .kind = kind,
-        .u_window = null,
-        .u_color = null,
+        .u_window = u_window,
+        .u_color = u_color,
     };
 }
 
 pub fn deinit(self: *Shader) void {
-    c.glDeleteProgram(self.id);
+    c.glDeleteProgram(self.program);
+    c.glDeleteVertexArrays(1, &self.vao);
 }
 
 pub fn use(self: *const Shader) void {
-    c.glUseProgram(self.id);
+    c.glUseProgram(self.program);
     c.glBindVertexArray(self.vao);
 }
 
@@ -61,23 +77,11 @@ pub fn u_window_set(self: *const Shader, width: i32, height: i32) ErrorShader!vo
     }
 }
 
-pub fn config_circle_shader(self: *Shader) !void {
-    self.u_window = try self.uniform_location("u_window");
-
-    c.glBindVertexArray(self.vao);
-    // aPos x, y
-    c.glVertexAttribPointer(0, 2, c.GL_FLOAT, c.GL_FALSE, 7 * @sizeOf(f32), @ptrFromInt(0));
-    c.glEnableVertexAttribArray(0);
-    // aColor rgb
-    c.glVertexAttribPointer(1, 3, c.GL_FLOAT, c.GL_FALSE, 7 * @sizeOf(f32), @ptrFromInt(2 * @sizeOf(f32)));
-    c.glEnableVertexAttribArray(1);
-    // aUV
-    c.glVertexAttribPointer(2, 2, c.GL_FLOAT, c.GL_FALSE, 7 * @sizeOf(f32), @ptrFromInt(5 * @sizeOf(f32)));
-    c.glEnableVertexAttribArray(2);
-}
-
-pub fn uniform_location(self: *Shader, name: []const u8) ErrorShader!c.GLint {
-    const result = c.glGetUniformLocation(self.id, name.ptr);
+pub fn uniform_location(program: c.GLuint, name: []const u8) ErrorShader!?c.GLint {
+    const result = c.glGetUniformLocation(program, name.ptr);
+    if (result == -1) {
+        return null;
+    }
     return switch (result) {
         c.GL_INVALID_OPERATION => ErrorShader.GLInvalidOperation,
         c.GL_INVALID_VALUE => ErrorShader.GLInvalidValue,
