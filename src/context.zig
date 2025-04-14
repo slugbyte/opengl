@@ -21,6 +21,18 @@ pub var fps: f32 = 60;
 pub var mouse_x: f32 = 0;
 pub var mouse_y: f32 = 0;
 
+pub var mouse_left_pressed: bool = false;
+pub var mouse_left_just_pressed: bool = false;
+pub var mouse_left_just_released: bool = false;
+
+var gui_id_bucket: u32 = 0;
+
+pub fn gui_id() u32 {
+    const result = gui_id_bucket;
+    gui_id_bucket += 1;
+    return result;
+}
+
 fn fps_update_smoothed() void {
     if (time_delta == 0) {
         return;

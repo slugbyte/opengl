@@ -12,6 +12,7 @@ const Framebuffer = @import("./Framebuffer.zig");
 const Texture = @import("./Texture.zig");
 const Color = @import("./Color.zig");
 const Dot = @import("./Dot.zig");
+const Button = @import("./Button.zig");
 
 const shader_vertex_source = @embedFile("./shader/vertex.glsl");
 const shader_fragment_default_source = @embedFile("./shader/fragment_default.glsl");
@@ -19,6 +20,12 @@ const shader_fragment_circle_source = @embedFile("./shader/fragment_circle.glsl"
 const shader_fragment_texture_source = @embedFile("./shader/fragment_texture.glsl");
 // 1) create a triangle using pixelspace that is solid color
 // 2) make a gradient using vector interpolation
+//
+var boom_num: i32 = 0;
+fn boom() void {
+    std.debug.print("boom {d}\n", .{boom_num});
+    boom_num += 1;
+}
 
 fn callback_framebuffer_resize(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
     c.glViewport(0, 0, width, height);
@@ -30,6 +37,18 @@ fn callback_framebuffer_resize(_: ?*c.GLFWwindow, width: c_int, height: c_int) c
 fn callback_cursor_position(_: ?*c.GLFWwindow, x: f64, y: f64) callconv(.C) void {
     ctx.mouse_x = @floatCast(x);
     ctx.mouse_y = @floatCast(y);
+}
+
+fn callback_mouse_button(_: ?*c.GLFWwindow, button: c_int, action: c_int, _: c_int) callconv(.C) void {
+    if (button == c.GLFW_MOUSE_BUTTON_LEFT) {
+        if (action == c.GLFW_PRESS) {
+            ctx.mouse_left_pressed = true;
+            ctx.mouse_left_just_pressed = true;
+        } else {
+            ctx.mouse_left_pressed = false;
+            ctx.mouse_left_just_released = true;
+        }
+    }
 }
 
 pub fn main() !void {
@@ -58,6 +77,7 @@ pub fn main() !void {
     callback_framebuffer_resize(window, 800, 600);
     _ = c.glfwSetFramebufferSizeCallback(window, &callback_framebuffer_resize);
     _ = c.glfwSetCursorPosCallback(window, &callback_cursor_position);
+    _ = c.glfwSetMouseButtonCallback(window, &callback_mouse_button);
 
     var dot_list = std.ArrayList(Dot).init(allocator);
 
@@ -83,7 +103,12 @@ pub fn main() !void {
     ctx.renderer.clear(color_bg);
     bg_framebuffer.bind_zero();
 
+    // setup button
+    var button = Button.init(100, 100, 100, 50);
+    button.on_click(&boom);
+
     while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
+        c.glfwPollEvents();
         ctx.time_update();
         ctx.renderer.clear(color_bg);
         // TODO: what happens if a new texture gets bound to the texture.unit before the
@@ -127,10 +152,14 @@ pub fn main() !void {
         try ctx.renderer.draw_rect_color_interploate(pallet_x + 2, pallet_y + 2, 246, 246, Color.White, Color{ .r = 255 }, Color{}, Color.Black);
         try ctx.renderer.draw_rect(pallet_x, pallet_y + 255, 250, 50, Color{});
         try ctx.renderer.end();
+
+        try button.render(shader_default);
+
         ctx.window_has_resized = false;
+        ctx.mouse_left_just_pressed = false;
+        ctx.mouse_left_just_released = false;
 
         c.glfwSwapBuffers(window);
-        c.glfwPollEvents();
-        ctx.debug_print();
+        // ctx.debug_print();
     }
 }
