@@ -1,73 +1,65 @@
 //! By convention, main.zig is where your main function lives in the case that
 //! you are building an executable. If you are making a library, the convention
 //! is to delete this file and start with root.zig instead.
+
 const std = @import("std");
 const c = @import("./c.zig");
+const ctx = @import("./context.zig");
+
+const Renderer = @import("./Renderer.zig");
+const Shader = @import("./Shader.zig");
+const Framebuffer = @import("./Framebuffer.zig");
+const Texture = @import("./Texture.zig");
+const Color = @import("./Color.zig");
+const Dot = @import("./Dot.zig");
+const Button = @import("./Button.zig");
 
 const shader_vertex_source = @embedFile("./shader/vertex.glsl");
-const shader_fragment_source = @embedFile("./shader/fragment.glsl");
+const shader_fragment_default_source = @embedFile("./shader/fragment_default.glsl");
+const shader_fragment_circle_source = @embedFile("./shader/fragment_circle.glsl");
+const shader_fragment_texture_source = @embedFile("./shader/fragment_texture.glsl");
+// 1) create a triangle using pixelspace that is solid color
+// 2) make a gradient using vector interpolation
+//
+var boom_num: i32 = 0;
+fn boom() void {
+    std.debug.print("boom {d}\n", .{boom_num});
+    boom_num += 1;
+}
 
-fn resize_callback(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
+fn callback_framebuffer_resize(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
     c.glViewport(0, 0, width, height);
+    ctx.window_width = @floatFromInt(width);
+    ctx.window_height = @floatFromInt(height);
+    ctx.window_has_resized = true;
 }
 
-fn shader_compile(shader_type: c.GLenum, source: []const u8) !c.GLuint {
-    if (!(shader_type == c.GL_FRAGMENT_SHADER or shader_type == c.GL_VERTEX_SHADER)) {
-        @panic("shader_type not supported");
-    }
-    const shader = c.glCreateShader(shader_type);
-    c.glShaderSource(shader, 1, @ptrCast(&source), null);
-    c.glCompileShader(shader);
-
-    var is_ok: c.GLenum = undefined;
-    c.glGetShaderiv(shader, c.GL_COMPILE_STATUS, @ptrCast(&is_ok));
-    if (is_ok == c.GL_FALSE) {
-        var err_msg: [512]u8 = undefined;
-        c.glGetShaderInfoLog(shader, 512, null, &err_msg);
-        return switch (shader_type) {
-            c.GL_FRAGMENT_SHADER => {
-                std.debug.print("ERROR: (compile_shader fragment) {s}\n", .{err_msg});
-                return error.shader_copile_fragment_failed;
-            },
-            c.GL_VERTEX_SHADER => {
-                std.debug.print("ERROR: (compile_shader vertex) {s}\n", .{err_msg});
-                return error.shader_copile_fragment_failed;
-            },
-            else => unreachable,
-        };
-    }
-    return shader;
+fn callback_cursor_position(_: ?*c.GLFWwindow, x: f64, y: f64) callconv(.C) void {
+    ctx.mouse_x = @floatCast(x);
+    ctx.mouse_y = @floatCast(y);
 }
 
-fn shader_program_create(vertex_source: []const u8, fragment_source: []const u8) !c.GLuint {
-    const vertex_shader = try shader_compile(c.GL_VERTEX_SHADER, vertex_source);
-    defer c.glDeleteShader(vertex_shader);
-    const fragment_shader = try shader_compile(c.GL_FRAGMENT_SHADER, fragment_source);
-    defer c.glDeleteShader(fragment_shader);
-
-    const shader_program = c.glCreateProgram();
-    c.glAttachShader(shader_program, vertex_shader);
-    c.glAttachShader(shader_program, fragment_shader);
-    c.glLinkProgram(shader_program);
-
-    var is_ok: c.GLenum = undefined;
-    c.glGetProgramiv(shader_program, c.GL_LINK_STATUS, @ptrCast(&is_ok));
-
-    if (is_ok == c.GL_FALSE) {
-        var err_msg: [512]u8 = undefined;
-        c.glGetProgramInfoLog(shader_program, 512, null, @ptrCast(&err_msg));
-        std.debug.print("ERROR: (shader_program_create) {s}\n", .{err_msg});
-        return error.program_link_failed;
+fn callback_mouse_button(_: ?*c.GLFWwindow, button: c_int, action: c_int, _: c_int) callconv(.C) void {
+    if (button == c.GLFW_MOUSE_BUTTON_LEFT) {
+        if (action == c.GLFW_PRESS) {
+            ctx.mouse_left_pressed = true;
+            ctx.mouse_left_just_pressed = true;
+        } else {
+            ctx.mouse_left_pressed = false;
+            ctx.mouse_left_just_released = true;
+        }
     }
-
-    return shader_program;
 }
 
 pub fn main() !void {
+    var debug_allocator = std.heap.DebugAllocator(.{}){};
+    const allocator = debug_allocator.allocator();
+
     if (c.glfwInit() == c.GLFW_FALSE) {
-        @panic("glfw failed to init");
+        @panic("failed to init glfw");
     }
     defer c.glfwTerminate();
+
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 3);
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
@@ -77,57 +69,97 @@ pub fn main() !void {
         @panic("glfw failed to create window");
     }
     c.glfwMakeContextCurrent(window);
+    c.glfwSwapInterval(1);
+    try ctx.init(allocator);
+    // var ctx.rand: std.Random = undefined;
+    // var prng = std.Random.DefaultPrng.init(100);
+    // ctx.rand = prng.ctx.random();
+    callback_framebuffer_resize(window, 800, 600);
+    _ = c.glfwSetFramebufferSizeCallback(window, &callback_framebuffer_resize);
+    _ = c.glfwSetCursorPosCallback(window, &callback_cursor_position);
+    _ = c.glfwSetMouseButtonCallback(window, &callback_mouse_button);
 
-    // set viewport and window resize callback
-    resize_callback(window, 800, 600);
-    _ = c.glfwSetFramebufferSizeCallback(window, &resize_callback);
+    var dot_list = std.ArrayList(Dot).init(allocator);
 
-    // each vertex has (x, y, r, g, b)
-    const vertex_data: [15]f32 = .{
-        0.0,  0.5,  1.0, 0.0, 0.0,
-        0.5,  -0.5, 0.0, 1.0, 0.0,
-        -0.5, -0.5, 0.0, 0.0, 1.0,
-    };
+    for (1..100) |_| {
+        try dot_list.append(Dot.init());
+    }
 
-    // create vao and vbo
-    var vao: c_uint = undefined;
-    var vbo: c_uint = undefined;
-    c.glGenVertexArrays(1, @ptrCast(&vao));
-    c.glGenBuffers(1, @ptrCast(&vbo));
-    // bind vao
-    c.glBindVertexArray(vao);
-    // bind vbo and set vertex data
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, vbo);
-    c.glBufferData(c.GL_ARRAY_BUFFER, vertex_data.len * @sizeOf(f32), @ptrCast(&vertex_data), c.GL_STATIC_DRAW);
+    var shader_default = try Shader.init(.Circle, shader_vertex_source, shader_fragment_default_source);
+    defer shader_default.deinit();
+    var shader_circle = try Shader.init(.Circle, shader_vertex_source, shader_fragment_circle_source);
+    defer shader_circle.deinit();
+    var shader_texture = try Shader.init(.Circle, shader_vertex_source, shader_fragment_texture_source);
+    defer shader_texture.deinit();
 
-    // set vertex attrib for location 0 (vec2 aPos)
-    c.glVertexAttribPointer(0, 2, c.GL_FLOAT, c.GL_FALSE, 5 * @sizeOf(f32), @ptrFromInt(0));
-    c.glEnableVertexAttribArray(0);
+    const color_bg = Color.gray(25, 255);
 
-    // set vertex attrib for location 1 (vec3 aColor)
-    c.glVertexAttribPointer(1, 3, c.GL_FLOAT, c.GL_FALSE, 5 * @sizeOf(f32), @ptrFromInt(2 * @sizeOf(f32)));
-    c.glEnableVertexAttribArray(1);
+    // setup framebuffer and texture for drawing background
+    var bg_texture = Texture.init(ctx.window_width, ctx.window_height, .T3);
+    var bg_framebuffer = try Framebuffer.init();
+    bg_framebuffer.bind();
+    bg_framebuffer.texture_attach(bg_texture, .A0);
+    try bg_framebuffer.status_check();
+    ctx.renderer.clear(color_bg);
+    bg_framebuffer.bind_zero();
 
-    // unbind vbo and vao
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, 0);
-    c.glBindVertexArray(0);
-
-    // create shader program and get uniform locations
-    const shader_program = try shader_program_create(shader_vertex_source, shader_fragment_source);
-    defer c.glDeleteProgram(shader_program);
+    // setup button
+    var button = Button.init(100, 100, 100, 50);
+    button.on_click(&boom);
 
     while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
-        c.glClearColor(0.0, 0.0, 0.0, 1.0);
-        c.glClear(c.GL_COLOR_BUFFER_BIT);
+        c.glfwPollEvents();
+        ctx.time_update();
+        ctx.renderer.clear(color_bg);
+        // TODO: what happens if a new texture gets bound to the texture.unit before the
+        // framebuffer is rebound?
 
-        // select shader
-        c.glUseProgram(shader_program);
-        // bind vao
-        c.glBindVertexArray(vao);
-        // draw triangle
-        c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
+        // render background to a texture
+        bg_framebuffer.bind();
+        ctx.renderer.blend_enable_alpha();
+        if (ctx.window_has_resized) {
+            try bg_texture.reset(ctx.window_width, ctx.window_height);
+            ctx.renderer.clear(color_bg);
+        }
+
+        try ctx.renderer.begin(shader_circle);
+        for (dot_list.items) |*dot_item| {
+            dot_item.update();
+            try dot_item.render();
+        }
+        try ctx.renderer.end();
+        try ctx.renderer.begin(shader_default);
+        for (dot_list.items) |*dot_item| {
+            dot_item.update();
+            try dot_item.render();
+        }
+        try ctx.renderer.end();
+        bg_framebuffer.bind_zero();
+
+        // render background texture to framebuffer
+        bg_texture.bind();
+        try ctx.renderer.begin(shader_texture);
+        try shader_texture.u_texture_set(bg_texture);
+        try ctx.renderer.draw_rect(0, 0, ctx.window_width, ctx.window_height, Color{});
+        try ctx.renderer.end();
+
+        // pallet
+        ctx.renderer.blend_disable();
+        const pallet_x = @divFloor(ctx.window_width, 2) - 125;
+        const pallet_y = @divFloor(ctx.window_height, 6) - 125;
+        try ctx.renderer.begin(shader_default);
+        try ctx.renderer.draw_rect(pallet_x, pallet_y, 250, 250, Color.Black);
+        try ctx.renderer.draw_rect_color_interploate(pallet_x + 2, pallet_y + 2, 246, 246, Color.White, Color{ .r = 255 }, Color{}, Color.Black);
+        try ctx.renderer.draw_rect(pallet_x, pallet_y + 255, 250, 50, Color{});
+        try ctx.renderer.end();
+
+        try button.render(shader_default);
+
+        ctx.window_has_resized = false;
+        ctx.mouse_left_just_pressed = false;
+        ctx.mouse_left_just_released = false;
 
         c.glfwSwapBuffers(window);
-        c.glfwPollEvents();
+        // ctx.debug_print();
     }
 }
