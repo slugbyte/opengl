@@ -22,14 +22,14 @@ const shader_fragment_texture_source = @embedFile("./shader/fragment_texture.gls
 
 fn callback_framebuffer_resize(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
     c.glViewport(0, 0, width, height);
-    ctx.window_width = width;
-    ctx.window_height = height;
+    ctx.window_width = @floatFromInt(width);
+    ctx.window_height = @floatFromInt(height);
     ctx.window_has_resized = true;
 }
 
 fn callback_cursor_position(_: ?*c.GLFWwindow, x: f64, y: f64) callconv(.C) void {
-    ctx.mouse_x = @intFromFloat(x);
-    ctx.mouse_y = @intFromFloat(y);
+    ctx.mouse_x = @floatCast(x);
+    ctx.mouse_y = @floatCast(y);
 }
 
 pub fn main() !void {

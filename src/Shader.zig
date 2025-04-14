@@ -72,9 +72,9 @@ pub fn use_none() void {
     c.glBindVertexArray(0);
 }
 
-pub fn u_window_set(self: *const Shader, width: i32, height: i32) ErrorShader!void {
+pub fn u_window_set(self: *const Shader, width: f32, height: f32) ErrorShader!void {
     if (self.u_window) |u_window| {
-        c.glUniform2f(u_window, @floatFromInt(width), @floatFromInt(height));
+        c.glUniform2f(u_window, width, height);
     } else {
         return ErrorShader.UWindowNotFound;
     }

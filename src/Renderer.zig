@@ -58,11 +58,11 @@ pub fn clear(_: *Renderer, color: Color) void {
     c.glClear(c.GL_COLOR_BUFFER_BIT);
 }
 
-pub fn draw_rect(self: *Renderer, x: i32, y: i32, width: i32, height: i32, color: Color) !void {
-    const x0: f32 = @floatFromInt(x);
-    const y0: f32 = @floatFromInt(y);
-    const x1: f32 = @floatFromInt(x + width);
-    const y1: f32 = @floatFromInt(y + height);
+pub fn draw_rect(self: *Renderer, x: f32, y: f32, width: f32, height: f32, color: Color) !void {
+    const x0: f32 = x;
+    const y0: f32 = y;
+    const x1: f32 = x + width;
+    const y1: f32 = y + height;
 
     const r: f32 = color.gl_r();
     const g: f32 = color.gl_g();
@@ -82,15 +82,15 @@ pub fn draw_rect(self: *Renderer, x: i32, y: i32, width: i32, height: i32, color
     self.vertex_count += 6;
 }
 
-pub fn draw_square(self: *Renderer, x: i32, y: i32, size: i32, color: Color) !void {
+pub fn draw_square(self: *Renderer, x: f32, y: f32, size: f32, color: Color) !void {
     try self.draw_rect(x, y, size, size, color);
 }
 
-pub fn draw_rect_color_interploate(self: *Renderer, x: i32, y: i32, width: i32, height: i32, color_a: Color, color_b: Color, color_c: Color, color_d: Color) !void {
-    const x0: f32 = @floatFromInt(x);
-    const y0: f32 = @floatFromInt(y);
-    const x1: f32 = @floatFromInt(x + width);
-    const y1: f32 = @floatFromInt(y + height);
+pub fn draw_rect_color_interploate(self: *Renderer, x: f32, y: f32, width: f32, height: f32, color_a: Color, color_b: Color, color_c: Color, color_d: Color) !void {
+    const x0: f32 = x;
+    const y0: f32 = y;
+    const x1: f32 = x + width;
+    const y1: f32 = y + height;
 
     const ar: f32 = color_a.gl_r();
     const ag: f32 = color_a.gl_g();
@@ -125,15 +125,16 @@ pub fn draw_rect_color_interploate(self: *Renderer, x: i32, y: i32, width: i32, 
     self.vertex_count += 6;
 }
 
-pub fn ColorEyedroper(_: *Renderer, x: i32, y: i32) Color {
+pub fn ColorEyedroper(_: *Renderer, x: f32, y: f32) Color {
     var width: c_int = undefined;
     var height: c_int = undefined;
     c.glfwGetFramebufferSize(c.glfwGetCurrentContext(), &width, &height);
 
-    const gl_y: c_int = height - y;
+    const read_x: c_int = @intFromFloat(x);
+    const read_y: c_int = height - @as(c_int, @intFromFloat(y));
     var rgba: [4]u8 = .{ 0, 0, 0, 0 };
 
-    c.glReadPixels(x, gl_y, 1, 1, c.GL_RGBA, c.GL_UNSIGNED_BYTE, @ptrCast(&rgba));
+    c.glReadPixels(read_x, read_y, 1, 1, c.GL_RGBA, c.GL_UNSIGNED_BYTE, @ptrCast(&rgba));
 
     std.debug.print("color: {any}", .{rgba});
     return Color{};

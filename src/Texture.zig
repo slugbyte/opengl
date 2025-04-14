@@ -7,16 +7,16 @@ const ErrorTexture = error{
 const Texture = @This();
 
 id: c_uint,
-width: i32,
-height: i32,
+width: f32,
+height: f32,
 unit: Unit,
 has_mipmap: bool = false,
 
-pub fn init(width: i32, height: i32, unit: Unit) Texture {
+pub fn init(width: f32, height: f32, unit: Unit) Texture {
     var id: c_uint = undefined;
     c.glGenTextures(1, &id);
     c.glBindTexture(c.GL_TEXTURE_2D, id);
-    c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGBA, width, height, 0, c.GL_RGBA, c.GL_UNSIGNED_BYTE, null);
+    c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGBA, @intFromFloat(width), @intFromFloat(height), 0, c.GL_RGBA, c.GL_UNSIGNED_BYTE, null);
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_LINEAR);
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_LINEAR);
 
@@ -63,11 +63,13 @@ pub fn GL_MAX_TEXTURE_IMAGE_UNITS() c_int() {
 }
 
 /// reset the Texture size (will error if it has_mipmap is true)
-pub fn reset(self: *Texture, width: i32, height: i32) ErrorTexture!void {
+pub fn reset(self: *Texture, width: f32, height: f32) ErrorTexture!void {
     if (self.has_mipmap) {
         return ErrorTexture.ResizeWithMipmapNotPossible;
     }
-    c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGBA, width, height, 0, c.GL_RGBA, c.GL_UNSIGNED_BYTE, null);
+    self.width = width;
+    self.height = height;
+    c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGBA, @intFromFloat(width), @intFromFloat(height), 0, c.GL_RGBA, c.GL_UNSIGNED_BYTE, null);
 }
 
 pub const Unit = enum(c_uint) {

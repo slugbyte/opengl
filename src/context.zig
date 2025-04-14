@@ -9,24 +9,24 @@ pub var rand: std.Random = undefined;
 
 pub var renderer: Renderer = undefined;
 
-pub var window_width: c_int = 0;
-pub var window_height: c_int = 0;
+pub var window_width: f32 = 0;
+pub var window_height: f32 = 0;
 pub var window_has_resized: bool = false;
 
-pub var time_last: i32 = 0;
-pub var time_delta: i32 = 0;
+pub var time_last: f32 = 0;
+pub var time_delta: f32 = 0;
 
 pub var fps: f32 = 60;
 
-pub var mouse_x: i32 = 0;
-pub var mouse_y: i32 = 0;
+pub var mouse_x: f32 = 0;
+pub var mouse_y: f32 = 0;
 
 fn fps_update_smoothed() void {
     if (time_delta == 0) {
         return;
     }
     const alpha: f32 = 0.1;
-    const current_fps: f32 = 1000.0 / @as(f32, @floatFromInt(time_delta));
+    const current_fps: f32 = 1000.0 / time_delta;
     fps = alpha * current_fps + (1.0 - alpha) * fps;
 }
 
@@ -40,9 +40,13 @@ pub fn debug_print() void {
 }
 
 pub fn time_update() void {
-    const time_current: i32 = @intFromFloat(c.glfwGetTime() * 1000.0);
+    const time_current: f32 = @as(f32, @floatCast(c.glfwGetTime())) * 1000.0;
     time_delta = time_current - time_last;
     time_last = time_current;
+}
+
+pub fn random(min: f32, max: f32) f32 {
+    return @floatFromInt(rand.intRangeLessThan(i32, @intFromFloat(min), @intFromFloat(max)));
 }
 
 pub fn init(allocator: std.mem.Allocator) !void {
