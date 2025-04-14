@@ -15,6 +15,7 @@ has_mipmap: bool = false,
 pub fn init(width: f32, height: f32, unit: Unit) Texture {
     var id: c_uint = undefined;
     c.glGenTextures(1, &id);
+    c.glActiveTexture(@intFromEnum(unit));
     c.glBindTexture(c.GL_TEXTURE_2D, id);
     c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGBA, @intFromFloat(width), @intFromFloat(height), 0, c.GL_RGBA, c.GL_UNSIGNED_BYTE, null);
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_LINEAR);
@@ -99,4 +100,35 @@ pub const Unit = enum(c_uint) {
     T23 = c.GL_TEXTURE23,
     T24 = c.GL_TEXTURE24,
     T25 = c.GL_TEXTURE25,
+
+    pub fn toUniformLocation(self: Unit) c_int {
+        return switch (self) {
+            .T0 => 0,
+            .T1 => 1,
+            .T2 => 2,
+            .T3 => 3,
+            .T4 => 4,
+            .T5 => 5,
+            .T6 => 6,
+            .T7 => 7,
+            .T8 => 8,
+            .T9 => 9,
+            .T10 => 10,
+            .T11 => 11,
+            .T12 => 12,
+            .T13 => 13,
+            .T14 => 14,
+            .T15 => 15,
+            .T16 => 16,
+            .T17 => 17,
+            .T18 => 18,
+            .T19 => 19,
+            .T20 => 20,
+            .T21 => 21,
+            .T22 => 22,
+            .T23 => 23,
+            .T24 => 24,
+            .T25 => 25,
+        };
+    }
 };

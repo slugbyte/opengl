@@ -1,5 +1,6 @@
 const std = @import("std");
 const c = @import("./c.zig");
+const Texture = @import("./Texture.zig");
 
 const Shader = @This();
 
@@ -24,6 +25,8 @@ kind: Kind,
 
 u_window: ?c.GLint,
 u_color: ?c.GLint,
+
+// TODO: allow for attaching 2-4 textures?
 u_texture: ?c.GLint,
 
 pub fn init(kind: Kind, vertex_source: []const u8, fragment_source: []const u8) ErrorShader!Shader {
@@ -80,9 +83,9 @@ pub fn u_window_set(self: *const Shader, width: f32, height: f32) ErrorShader!vo
     }
 }
 
-pub fn u_texture_set(self: *const Shader, location: i32) ErrorShader!void {
+pub fn u_texture_set(self: *const Shader, texture: Texture) ErrorShader!void {
     if (self.u_texture) |u_texture| {
-        c.glUniform1i(u_texture, location);
+        c.glUniform1i(u_texture, texture.unit.toUniformLocation());
     } else {
         return ErrorShader.UWindowNotFound;
     }

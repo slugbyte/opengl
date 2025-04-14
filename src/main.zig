@@ -75,13 +75,11 @@ pub fn main() !void {
     const color_bg = Color.gray(25, 255);
 
     // setup framebuffer and texture for drawing background
+    var bg_texture = Texture.init(ctx.window_width, ctx.window_height, .T3);
     var bg_framebuffer = try Framebuffer.init();
     bg_framebuffer.bind();
-    var bg_texture = Texture.init(ctx.window_width, ctx.window_height, .T0);
-    bg_texture.bind();
     bg_framebuffer.texture_attach(bg_texture, .A0);
     try bg_framebuffer.status_check();
-
     ctx.renderer.clear(color_bg);
     bg_framebuffer.bind_zero();
 
@@ -114,8 +112,9 @@ pub fn main() !void {
         bg_framebuffer.bind_zero();
 
         // render background texture to framebuffer
+        bg_texture.bind();
         try ctx.renderer.begin(shader_texture);
-        try shader_texture.u_texture_set(0);
+        try shader_texture.u_texture_set(bg_texture);
         try ctx.renderer.draw_rect(0, 0, ctx.window_width, ctx.window_height, Color{});
         try ctx.renderer.end();
 
