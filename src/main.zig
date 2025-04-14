@@ -64,7 +64,7 @@ pub fn main() !void {
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
 
-    const window = c.glfwCreateWindow(800, 600, "EMO", null, null);
+    const window = c.glfwCreateWindow(800, 600, "DEMO", null, null);
     if (window == null) {
         @panic("glfw failed to create window");
     }
