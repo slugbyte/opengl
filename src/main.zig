@@ -8,6 +8,8 @@ const ctx = @import("./context.zig");
 
 const Renderer = @import("./Renderer.zig");
 const Shader = @import("./Shader.zig");
+const Framebuffer = @import("./Framebuffer.zig");
+const Texture = @import("./Texture.zig");
 const Color = @import("./Color.zig");
 const Dot = @import("./Dot.zig");
 
@@ -48,6 +50,7 @@ pub fn main() !void {
         @panic("glfw failed to create window");
     }
     c.glfwMakeContextCurrent(window);
+    c.glfwSwapInterval(1);
     try ctx.init(allocator);
     // var ctx.rand: std.Random = undefined;
     // var prng = std.Random.DefaultPrng.init(100);
@@ -70,35 +73,29 @@ pub fn main() !void {
     defer shader_texture.deinit();
 
     const color_bg = Color.gray(25, 255);
-    // const color_fg = Color.gray(240, 255);
-    //
-    var fbo: c_uint = undefined;
-    c.glGenFramebuffers(1, &fbo);
-    c.glBindFramebuffer(c.GL_FRAMEBUFFER, fbo);
 
-    var tex: c_uint = undefined;
-    c.glGenTextures(1, &tex);
-    c.glBindTexture(c.GL_TEXTURE_2D, tex);
-    c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGB, ctx.window_width, ctx.window_height, 0, c.GL_RGB, c.GL_UNSIGNED_BYTE, null);
-    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_LINEAR);
-    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_LINEAR);
-    c.glFramebufferTexture2D(c.GL_FRAMEBUFFER, c.GL_COLOR_ATTACHMENT0, c.GL_TEXTURE_2D, tex, 0);
+    // setup framebuffer and texture for drawing background
+    var bg_framebuffer = try Framebuffer.init();
+    bg_framebuffer.bind();
+    var bg_texture = Texture.init(ctx.window_width, ctx.window_height, .T0);
+    bg_texture.bind();
+    bg_framebuffer.texture_attach(bg_texture, .A0);
+    try bg_framebuffer.status_check();
 
-    if (c.glCheckFramebufferStatus(c.GL_FRAMEBUFFER) != c.GL_FRAMEBUFFER_COMPLETE) {
-        @panic("framebuffer is not complete");
-    }
     ctx.renderer.clear(color_bg);
-    c.glBindFramebuffer(c.GL_FRAMEBUFFER, 0);
+    bg_framebuffer.bind_zero();
 
     while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
         ctx.time_update();
         ctx.renderer.clear(color_bg);
+        // TODO: what happens if a new texture gets bound to the texture.unit before the
+        // framebuffer is rebound?
 
         // render background to a texture
-        c.glBindFramebuffer(c.GL_FRAMEBUFFER, fbo);
+        bg_framebuffer.bind();
         ctx.renderer.blend_enable_alpha();
         if (ctx.window_has_resized) {
-            c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGB, ctx.window_width, ctx.window_height, 0, c.GL_RGB, c.GL_UNSIGNED_BYTE, null);
+            try bg_texture.reset(ctx.window_width, ctx.window_height);
             ctx.renderer.clear(color_bg);
         }
 
@@ -114,7 +111,7 @@ pub fn main() !void {
             try dot_item.render();
         }
         try ctx.renderer.end();
-        c.glBindFramebuffer(c.GL_FRAMEBUFFER, 0);
+        bg_framebuffer.bind_zero();
 
         // render background texture to framebuffer
         try ctx.renderer.begin(shader_texture);
@@ -131,7 +128,6 @@ pub fn main() !void {
         try ctx.renderer.draw_rect_color_interploate(pallet_x + 2, pallet_y + 2, 246, 246, Color.White, Color{ .r = 255 }, Color{}, Color.Black);
         try ctx.renderer.draw_rect(pallet_x, pallet_y + 255, 250, 50, Color{});
         try ctx.renderer.end();
-
         ctx.window_has_resized = false;
 
         c.glfwSwapBuffers(window);

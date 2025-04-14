@@ -16,12 +16,24 @@ pub var window_has_resized: bool = false;
 pub var time_last: i32 = 0;
 pub var time_delta: i32 = 0;
 
+pub var fps: f32 = 60;
+
 pub var mouse_x: i32 = 0;
 pub var mouse_y: i32 = 0;
 
+fn fps_update_smoothed() void {
+    if (time_delta == 0) {
+        return;
+    }
+    const alpha: f32 = 0.1;
+    const current_fps: f32 = 1000.0 / @as(f32, @floatFromInt(time_delta));
+    fps = alpha * current_fps + (1.0 - alpha) * fps;
+}
+
 pub fn debug_print() void {
     debug.hud_start();
-    debug.hud_println("time_delta: {d:>4}ms", .{time_delta});
+    fps_update_smoothed();
+    debug.hud_println("fps: {d:<5}", .{fps});
     debug.hud_println("mouse: {d:>5}x {d:>5}y", .{ mouse_x, mouse_y });
     debug.hud_println("window size {d:>5}w {d:>5}h", .{ window_width, window_height });
     debug.hud_end();
