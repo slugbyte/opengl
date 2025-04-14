@@ -18,6 +18,7 @@ y_speed: f32 = 5,
 
 color: Color = Color.White,
 should_darken: bool = false,
+time_respawn: f32 = 0,
 
 pub fn init() Dot {
     const gray = ctx.rand.int(u8);
@@ -27,29 +28,34 @@ pub fn init() Dot {
         .x = ctx.random(0, ctx.window_width),
         .y = ctx.random(-100, ctx.window_height),
         .size = size,
-        .x_speed = ctx.random(2, 6) * x_flip,
-        .y_speed = ctx.random(2, 6),
+        .x_speed = ctx.random(-50, 50) * x_flip,
+        .y_speed = ctx.random(50, 300),
         .color = Color.gray(gray, 200),
         .should_darken = ctx.rand.boolean(),
     };
 }
 
+pub fn update_speed(self: *Dot) void {
+    self.y_speed = ctx.random(50, 300);
+    self.x_speed = ctx.random(-100, 100);
+}
+
 pub fn update(self: *Dot) void {
-    if (ctx.window_has_resized) {
+    if (ctx.window_has_resized_frame) {
         self.x = ctx.random(-100, ctx.window_width + 100);
         self.y = ctx.random(-100, ctx.window_height + 100);
     }
-    if (ctx.rand.float(f32) < 0.01) {
+
+    if (ctx.rand.float(f32) > 0.01) {
         self.x = ctx.random(-100, ctx.window_width + 100);
         self.y = ctx.random(-100, ctx.window_height + 100);
-        self.color = Color.gray(ctx.rand.int(u8), 200);
-        self.size = ctx.random(2, 50);
     }
+
     if (ctx.rand.float(f32) < 0.3) {
         self.size = std.math.clamp(self.size - 1, 10, 100);
-        self.y_speed = ctx.random(2, 6);
-        self.x_speed = ctx.random(-3, 3);
+        self.update_speed();
     }
+
     if (ctx.rand.float(f32) < 0.1) {
         if (self.should_darken) {
             self.color = Color.gray(self.color.r -| 5, 200);
@@ -57,10 +63,10 @@ pub fn update(self: *Dot) void {
             self.color = Color.gray(self.color.r +| 5, 200);
         }
     }
-    self.y = self.y + self.y_speed;
-    self.x = self.x + self.x_speed;
+    self.y = self.y + (self.y_speed);
+    self.x = self.x + (self.x_speed);
 }
 
 pub fn render(self: *Dot) !void {
-    try ctx.renderer.draw_square(self.x, self.y, self.size, self.color);
+    try ctx.renderer.draw_square(@floor(self.x), @floor(self.y), self.size, self.color);
 }

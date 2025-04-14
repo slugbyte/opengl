@@ -12,9 +12,14 @@ pub var renderer: Renderer = undefined;
 pub var window_width: f32 = 0;
 pub var window_height: f32 = 0;
 pub var window_has_resized: bool = false;
+pub var window_has_resized_frame: bool = false;
 
 pub var time_last: f32 = 0;
 pub var time_delta: f32 = 0;
+
+pub var frame_last: f32 = 0;
+pub var frame_delta: f32 = 0;
+pub var frame_update: bool = true;
 
 pub var fps: f32 = 60;
 
@@ -39,10 +44,21 @@ pub fn debug_print() void {
     debug.hud_end();
 }
 
-pub fn time_update() void {
-    const time_current: f32 = @as(f32, @floatCast(c.glfwGetTime())) * 1000.0;
+pub fn time_now() f32 {
+    return @floatCast(c.glfwGetTime());
+}
+
+pub fn time_delta_update() void {
+    const time_current: f32 = time_now();
     time_delta = time_current - time_last;
     time_last = time_current;
+
+    frame_update = false;
+    frame_delta = time_current - frame_last;
+    if ((frame_delta * 1000) > 16.6) {
+        frame_last = time_current;
+        frame_update = true;
+    }
 }
 
 pub fn random(min: f32, max: f32) f32 {

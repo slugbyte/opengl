@@ -25,6 +25,7 @@ fn callback_framebuffer_resize(_: ?*c.GLFWwindow, width: c_int, height: c_int) c
     ctx.window_width = @floatFromInt(width);
     ctx.window_height = @floatFromInt(height);
     ctx.window_has_resized = true;
+    ctx.window_has_resized_frame = true;
 }
 
 fn callback_cursor_position(_: ?*c.GLFWwindow, x: f64, y: f64) callconv(.C) void {
@@ -50,7 +51,7 @@ pub fn main() !void {
         @panic("glfw failed to create window");
     }
     c.glfwMakeContextCurrent(window);
-    c.glfwSwapInterval(1);
+    c.glfwSwapInterval(0);
     try ctx.init(allocator);
     // var ctx.rand: std.Random = undefined;
     // var prng = std.Random.DefaultPrng.init(100);
@@ -84,32 +85,28 @@ pub fn main() !void {
     bg_framebuffer.bind_zero();
 
     while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
-        ctx.time_update();
+        ctx.time_delta_update();
         ctx.renderer.clear(color_bg);
         // TODO: what happens if a new texture gets bound to the texture.unit before the
         // framebuffer is rebound?
 
         // render background to a texture
-        bg_framebuffer.bind();
-        ctx.renderer.blend_enable_alpha();
-        if (ctx.window_has_resized) {
-            try bg_texture.reset(ctx.window_width, ctx.window_height);
-            ctx.renderer.clear(color_bg);
-        }
+        if (ctx.frame_update) {
+            bg_framebuffer.bind();
+            ctx.renderer.blend_enable_alpha();
+            if (ctx.window_has_resized_frame) {
+                try bg_texture.reset(ctx.window_width, ctx.window_height);
+                ctx.renderer.clear(color_bg);
+            }
 
-        try ctx.renderer.begin(shader_circle);
-        for (dot_list.items) |*dot_item| {
-            dot_item.update();
-            try dot_item.render();
+            try ctx.renderer.begin(shader_default);
+            for (dot_list.items) |*dot_item| {
+                dot_item.update();
+                try dot_item.render();
+            }
+            try ctx.renderer.end();
+            bg_framebuffer.bind_zero();
         }
-        try ctx.renderer.end();
-        try ctx.renderer.begin(shader_default);
-        for (dot_list.items) |*dot_item| {
-            dot_item.update();
-            try dot_item.render();
-        }
-        try ctx.renderer.end();
-        bg_framebuffer.bind_zero();
 
         // render background texture to framebuffer
         bg_texture.bind();
@@ -127,7 +124,11 @@ pub fn main() !void {
         try ctx.renderer.draw_rect_color_interploate(pallet_x + 2, pallet_y + 2, 246, 246, Color.White, Color{ .r = 255 }, Color{}, Color.Black);
         try ctx.renderer.draw_rect(pallet_x, pallet_y + 255, 250, 50, Color{});
         try ctx.renderer.end();
+
         ctx.window_has_resized = false;
+        if (ctx.frame_update) {
+            ctx.window_has_resized_frame = true;
+        }
 
         c.glfwSwapBuffers(window);
         c.glfwPollEvents();
