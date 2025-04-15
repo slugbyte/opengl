@@ -41,6 +41,7 @@ pub fn main() !void {
 
     try ctx.init();
     try gl.init(allocator);
+    defer gl.deinit();
 
     ctx.glfw_callback_framebuffer_resize(window, 800, 600);
     _ = c.glfwSetFramebufferSizeCallback(window, &ctx.glfw_callback_framebuffer_resize);
@@ -75,50 +76,46 @@ pub fn main() !void {
         // TODO: what happens if a new texture gets bound to the texture.unit before the
         // framebuffer is rebound?
 
-        // // render background to a texture
-        // bg_framebuffer.bind();
-        // if (ctx.window_has_resized) {
-        //     try bg_texture.reset(ctx.window_width, ctx.window_height);
-        //     gl.clear(color_bg);
-        // }
-        //
-        // try gl.shader_program_set(.{ .Circle = {} });
-        // gl.batch.begin();
-        // for (dot_list.items) |*dot_item| {
-        //     dot_item.update();
-        //     try dot_item.render();
-        // }
-        // try gl.batch.end();
-        //
-        // try gl.shader_program_set(.{ .Default = {} });
-        // gl.batch.begin();
-        // for (dot_list.items) |*dot_item| {
-        //     dot_item.update();
-        //     try dot_item.render();
-        // }
-        // try gl.batch.end();
-        // bg_framebuffer.bind_zero();
-        //
-        // bg_texture.bind();
-        // try gl.shader_program_set(.{ .Texture = bg_texture });
-        // gl.batch.begin();
-        // try gl.batch.draw_rect(0, 0, ctx.window_width, ctx.window_height, Color{});
-        // try gl.batch.end();
+        // render background to a texture
+        bg_framebuffer.bind();
+        if (ctx.window_has_resized) {
+            try bg_texture.reset(ctx.window_width, ctx.window_height);
+            gl.clear(color_bg);
+        }
+
+        try gl.shader_program_set(.{ .Circle = {} });
+        for (dot_list.items) |*dot_item| {
+            dot_item.update();
+            try dot_item.render();
+        }
+        try gl.batch.flush();
+
+        try gl.shader_program_set(.{ .Default = {} });
+        for (dot_list.items) |*dot_item| {
+            dot_item.update();
+            try dot_item.render();
+        }
+        try gl.batch.flush();
+        bg_framebuffer.bind_zero();
+
+        bg_texture.bind();
+        try gl.shader_program_set(.{ .Texture = bg_texture });
+        try gl.batch.draw_rect(0, 0, ctx.window_width, ctx.window_height, Color{});
+        try gl.batch.flush();
 
         // pallet
-        // const pallet_x = @divFloor(ctx.window_width, 2) - 125;
-        // const pallet_y = @divFloor(ctx.window_height, 6) - 125;
-        // try gl.shader_program_set(.{ .Default = {} });
-        // gl.batch.begin();
-        // try gl.batch.draw_rect(pallet_x, pallet_y, 250, 250, Color.Black);
-        // try gl.batch.draw_rect_color_interploate(pallet_x + 2, pallet_y + 2, 246, 246, Color.White, Color{ .r = 255 }, Color{}, Color.Black);
-        // try gl.batch.draw_rect(pallet_x, pallet_y + 255, 250, 50, Color{});
-        // try gl.batch.end();
+        const pallet_x = @divFloor(ctx.window_width, 2) - 125;
+        const pallet_y = @divFloor(ctx.window_height, 6) - 125;
+        try gl.shader_program_set(.{ .Default = {} });
+        try gl.batch.draw_rect(pallet_x, pallet_y, 250, 250, Color.Black);
+        try gl.batch.draw_rect_color_interploate(pallet_x + 2, pallet_y + 2, 246, 246, Color.White, Color{ .r = 255 }, Color{}, Color.Black);
+        try gl.batch.draw_rect(pallet_x, pallet_y + 255, 250, 50, Color{});
+        try gl.batch.flush();
 
         try button.render();
 
         ctx.update_end();
-        // ctx.debug_hud_print();
+        ctx.debug_hud_print();
         c.glfwSwapBuffers(window);
     }
 }
