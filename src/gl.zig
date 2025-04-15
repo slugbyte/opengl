@@ -27,7 +27,7 @@ var shader_program: ShaderProgram = .Default;
 pub const batch = @import("./gl_batch.zig");
 
 pub fn init(allocator: std.mem.Allocator) !void {
-    batch.init(allocator);
+    try batch.init(allocator);
     mesh = Mesh.init(999);
     shader_default = try Shader.init(shader_vertex_source, shader_fragment_default_source);
     shader_texture = try Shader.init(shader_vertex_source, shader_fragment_texture_source);

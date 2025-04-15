@@ -1,40 +1,47 @@
 const std = @import("std");
 const ctx = @import("./context.zig");
-
 const c = @import("./c.zig");
-const Shader = @import("./Shader.zig");
-const Color = @import("./Color.zig");
 
+const Shader = @import("./Shader.zig");
+const Mesh = @import("./Mesh.zig");
+const Color = @import("./Color.zig");
 const VertexBuffer = std.ArrayList(f32);
 
-var vbo: c_uint = undefined;
-var vertex_count: u32 = 0;
-var vertex_buffer: VertexBuffer = undefined;
+const VERTEX_FLOAT_COUNT = 8;
+const VERTEX_MEMORY_SIZE = VERTEX_FLOAT_COUNT * @sizeOf(f32);
+const MAX_VERTEX_CAPACITY = 1000;
+const MAX_MEMORY_CAPACITY = MAX_VERTEX_CAPACITY * VERTEX_MEMORY_SIZE;
 
-pub fn init(allocator: std.mem.Allocator) void {
-    c.glGenBuffers(1, &vbo);
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, vbo);
-    vertex_buffer = VertexBuffer.init(allocator);
+var mesh: Mesh = undefined;
+var vertex_count: c_int = 0;
+var vertex_buffer: VertexBuffer = undefined;
+var flush_count: u32 = 0;
+
+pub fn init(allocator: std.mem.Allocator) !void {
+    mesh = Mesh.init(MAX_MEMORY_CAPACITY);
+    vertex_buffer = try VertexBuffer.initCapacity(allocator, MAX_MEMORY_CAPACITY);
 }
 
 pub fn deinit() void {
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, 0);
-    c.glDeleteBuffers(1, vbo);
     vertex_buffer.deinit();
+    mesh.deinit();
 }
 
-pub fn begin() void {
-    vertex_count = 0;
-}
-
-pub fn end() !void {
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, vbo);
-    c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(vertex_buffer.items.len * @sizeOf(f32)), @ptrCast(vertex_buffer.items.ptr), c.GL_DYNAMIC_DRAW);
-    c.glDrawArrays(c.GL_TRIANGLES, 0, @intCast(vertex_count));
+pub fn flush() !void {
+    try mesh.draw_triangles(vertex_count, vertex_buffer.items);
     try vertex_buffer.resize(0);
+    vertex_count = 0;
+    flush_count += 1;
+}
+
+fn ensure_vertex_capacity(count: u32) !void {
+    if ((MAX_VERTEX_CAPACITY - vertex_count) < count) {
+        try flush();
+    }
 }
 
 pub fn draw_rect(x: f32, y: f32, width: f32, height: f32, color: Color) !void {
+    try ensure_vertex_capacity(6);
     const x0: f32 = x;
     const y0: f32 = y;
     const x1: f32 = x + width;
@@ -63,6 +70,7 @@ pub fn draw_square(x: f32, y: f32, size: f32, color: Color) !void {
 }
 
 pub fn draw_rect_color_interploate(x: f32, y: f32, width: f32, height: f32, color_bl: Color, color_tl: Color, color_tr: Color, color_br: Color) !void {
+    try ensure_vertex_capacity(6);
     const x0: f32 = x;
     const y0: f32 = y;
     const x1: f32 = x + width;
