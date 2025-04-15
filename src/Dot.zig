@@ -1,7 +1,7 @@
 const std = @import("std");
 const ctx = @import("./context.zig");
+const gl = @import("./gl.zig");
 const Color = @import("./Color.zig");
-const Renderer = @import("./Renderer.zig");
 
 const Dot = @This();
 
@@ -62,5 +62,5 @@ pub fn update(self: *Dot) void {
 }
 
 pub fn render(self: *Dot) !void {
-    try ctx.renderer.draw_square(self.x, self.y, self.size, self.color);
+    try gl.batch.draw_square(self.x, self.y, self.size, self.color);
 }

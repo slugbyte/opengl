@@ -1,0 +1,105 @@
+const std = @import("std");
+const c = @import("./c.zig");
+const ctx = @import("./context.zig");
+const Shader = @import("./Shader.zig");
+const Color = @import("./Color.zig");
+const Texture = @import("./Texture.zig");
+
+const shader_vertex_source = @embedFile("./shader/vertex.glsl");
+const shader_fragment_default_source = @embedFile("./shader/fragment_default.glsl");
+const shader_fragment_circle_source = @embedFile("./shader/fragment_circle.glsl");
+const shader_fragment_texture_source = @embedFile("./shader/fragment_texture.glsl");
+
+var shader_default: Shader = undefined;
+var shader_texture: Shader = undefined;
+var shader_circle: Shader = undefined;
+
+var blend_mode: BlendMode = .Normal;
+var shader_program: ShaderProgram = .Default;
+
+pub const batch = @import("./gl_batch.zig");
+
+pub fn init(allocator: std.mem.Allocator) !void {
+    batch.init(allocator);
+    shader_default = try Shader.init(shader_vertex_source, shader_fragment_default_source);
+    shader_texture = try Shader.init(shader_vertex_source, shader_fragment_texture_source);
+    shader_circle = try Shader.init(shader_vertex_source, shader_fragment_circle_source);
+    blend_mode_set(.Normal);
+}
+
+pub fn deinit() void {
+    batch.deinit();
+    shader_default.deinit();
+    shader_texture.deinit();
+    shader_circle.deinit();
+}
+
+pub fn blend_mode_set(mode: BlendMode) void {
+    c.glEnable(c.GL_BLEND);
+    blend_mode = mode;
+    switch (mode) {
+        .Disable => c.glDisable(c.GL_BLEND),
+        .Normal => c.glBlendFunc(c.GL_SRC_ALPHA, c.GL_ONE_MINUS_SRC_ALPHA),
+        .Overlay => c.glBlendFunc(c.GL_SRC_ALPHA, c.GL_ONE_MINUS_SRC_ALPHA),
+        .Multiply => c.glBlendFunc(c.GL_DST_COLOR, c.GL_ONE_MINUS_SRC_ALPHA),
+        .Add => c.glBlendFunc(c.GL_SRC_ALPHA, c.GL_ONE),
+        .Subtract => {
+            c.glBlendFuncSeparate(c.GL_SRC_ALPHA, c.GL_ONE, c.GL_ONE, c.GL_ONE_MINUS_SRC_ALPHA);
+            c.glBlendEquation(c.GL_FUNC_REVERSE_SUBTRACT);
+        },
+    }
+}
+
+pub fn shader_program_set(program: ShaderProgram) !void {
+    shader_program = program;
+    switch (program) {
+        .Default => {
+            shader_default.use();
+            try shader_default.u_window_set(ctx.window_width, ctx.window_height);
+        },
+        .Circle => {
+            shader_circle.use();
+            try shader_circle.u_window_set(ctx.window_width, ctx.window_height);
+        },
+        .Texture => |texture| {
+            shader_texture.use();
+            try shader_texture.u_window_set(ctx.window_width, ctx.window_height);
+            try shader_texture.u_texture_set(texture);
+        },
+    }
+}
+
+pub fn clear(color: Color) void {
+    c.glClearColor(color.gl_r(), color.gl_g(), color.gl_b(), 1.0);
+    c.glClear(c.GL_COLOR_BUFFER_BIT);
+}
+
+pub fn eyedroper(x: f32, y: f32) Color {
+    var width: c_int = undefined;
+    var height: c_int = undefined;
+    c.glfwGetFramebufferSize(c.glfwGetCurrentContext(), &width, &height);
+
+    const read_x: c_int = @intFromFloat(x);
+    const read_y: c_int = height - @as(c_int, @intFromFloat(y));
+    var rgba: [4]u8 = .{ 0, 0, 0, 0 };
+
+    c.glReadPixels(read_x, read_y, 1, 1, c.GL_RGBA, c.GL_UNSIGNED_BYTE, @ptrCast(&rgba));
+
+    std.debug.print("color: {any}", .{rgba});
+    return Color{};
+}
+
+const BlendMode = enum {
+    Disable,
+    Normal,
+    Overlay,
+    Add,
+    Subtract,
+    Multiply,
+};
+
+const ShaderProgram = union(enum) {
+    Default: void,
+    Circle: void,
+    Texture: Texture,
+};

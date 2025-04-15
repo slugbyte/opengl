@@ -11,17 +11,11 @@ const ErrorShader = error{
     GLInvalidValue,
     GLInvalidOperation,
     UWindowNotFound,
-};
-
-pub const Kind = enum {
-    Circle,
-    Rect,
-    Quad,
+    UTextureNotFound,
 };
 
 program: c.GLuint,
 vao: c.GLuint,
-kind: Kind,
 
 u_window: ?c.GLint,
 u_color: ?c.GLint,
@@ -29,7 +23,7 @@ u_color: ?c.GLint,
 // TODO: allow for attaching 2-4 textures?
 u_texture: ?c.GLint,
 
-pub fn init(kind: Kind, vertex_source: []const u8, fragment_source: []const u8) ErrorShader!Shader {
+pub fn init(vertex_source: []const u8, fragment_source: []const u8) ErrorShader!Shader {
     const program = try program_create(vertex_source, fragment_source);
     const u_window = try uniform_location(program, "u_window");
     const u_color = try uniform_location(program, "u_color");
@@ -53,7 +47,6 @@ pub fn init(kind: Kind, vertex_source: []const u8, fragment_source: []const u8) 
     return Shader{
         .program = program,
         .vao = vao,
-        .kind = kind,
         .u_window = u_window,
         .u_color = u_color,
         .u_texture = u_texture,
@@ -87,7 +80,7 @@ pub fn u_texture_set(self: *const Shader, texture: Texture) ErrorShader!void {
     if (self.u_texture) |u_texture| {
         c.glUniform1i(u_texture, texture.unit.toUniformLocation());
     } else {
-        return ErrorShader.UWindowNotFound;
+        return ErrorShader.UTextureNotFound;
     }
 }
 
