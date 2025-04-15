@@ -3,12 +3,19 @@ const c = @import("./c.zig");
 const ctx = @import("./context.zig");
 const Shader = @import("./Shader.zig");
 const Color = @import("./Color.zig");
+const Rect = @import("./Rect.zig");
+const Mesh = @import("./Mesh.zig");
 const Texture = @import("./Texture.zig");
 
 const shader_vertex_source = @embedFile("./shader/vertex.glsl");
 const shader_fragment_default_source = @embedFile("./shader/fragment_default.glsl");
 const shader_fragment_circle_source = @embedFile("./shader/fragment_circle.glsl");
 const shader_fragment_texture_source = @embedFile("./shader/fragment_texture.glsl");
+
+var vao: c_uint = undefined;
+var vbo: c_uint = undefined;
+
+var mesh: Mesh = undefined;
 
 var shader_default: Shader = undefined;
 var shader_texture: Shader = undefined;
@@ -21,6 +28,7 @@ pub const batch = @import("./gl_batch.zig");
 
 pub fn init(allocator: std.mem.Allocator) !void {
     batch.init(allocator);
+    mesh = Mesh.init(999);
     shader_default = try Shader.init(shader_vertex_source, shader_fragment_default_source);
     shader_texture = try Shader.init(shader_vertex_source, shader_fragment_texture_source);
     shader_circle = try Shader.init(shader_vertex_source, shader_fragment_circle_source);
@@ -32,6 +40,7 @@ pub fn deinit() void {
     shader_default.deinit();
     shader_texture.deinit();
     shader_circle.deinit();
+    c.glDeleteBuffers(1, vbo);
 }
 
 pub fn blend_mode_set(mode: BlendMode) void {
@@ -87,6 +96,25 @@ pub fn eyedroper(x: f32, y: f32) Color {
 
     std.debug.print("color: {any}", .{rgba});
     return Color{};
+}
+
+pub fn draw_rect(rect: Rect, color: Color) !void {
+    const x0: f32 = rect.x;
+    const y0: f32 = rect.y;
+    const x1: f32 = rect.x + rect.width;
+    const y1: f32 = rect.y + rect.height;
+
+    const r, const g, const b, const a = color.gl_vertex();
+    // x y r g b a u v
+    const vertex_data: [48]f32 = .{
+        x0, y0, r, g, b, a, 1, 1,
+        x1, y0, r, g, b, a, 0, 1,
+        x0, y1, r, g, b, a, 1, 0,
+        x0, y1, r, g, b, a, 1, 0,
+        x1, y0, r, g, b, a, 0, 1,
+        x1, y1, r, g, b, a, 0, 0,
+    };
+    try mesh.draw_triangles(6, &vertex_data);
 }
 
 const BlendMode = enum {

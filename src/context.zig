@@ -41,9 +41,12 @@ pub fn random(min: f32, max: f32) f32 {
     return @floatFromInt(rand.intRangeLessThan(i32, @intFromFloat(min), @intFromFloat(max)));
 }
 
-pub const inspect = std.debug.print;
+pub fn inspect(comptime fmt: []const u8, args: anytype) void {
+    std.debug.print(fmt, args);
+    std.debug.print("\n", .{});
+}
 
-pub fn info(msg: []const u8) void {
+pub fn info(comptime msg: []const u8) void {
     std.debug.print(msg, .{});
     std.debug.print("\n", .{});
 }

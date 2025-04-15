@@ -30,19 +30,8 @@ pub fn init(vertex_source: []const u8, fragment_source: []const u8) ErrorShader!
     const u_texture = try uniform_location(program, "u_texture");
 
     var vao: c.GLuint = undefined;
-    c.glCreateVertexArrays(1, &vao);
+    c.glGenVertexArrays(1, &vao);
     c.glBindVertexArray(vao);
-
-    c.glBindVertexArray(vao);
-    // aPos x, y
-    c.glVertexAttribPointer(0, 2, c.GL_FLOAT, c.GL_FALSE, 8 * @sizeOf(f32), @ptrFromInt(0));
-    c.glEnableVertexAttribArray(0);
-    // aColor rgb
-    c.glVertexAttribPointer(1, 4, c.GL_FLOAT, c.GL_FALSE, 8 * @sizeOf(f32), @ptrFromInt(2 * @sizeOf(f32)));
-    c.glEnableVertexAttribArray(1);
-    // aUV
-    c.glVertexAttribPointer(2, 2, c.GL_FLOAT, c.GL_FALSE, 8 * @sizeOf(f32), @ptrFromInt(6 * @sizeOf(f32)));
-    c.glEnableVertexAttribArray(2);
 
     return Shader{
         .program = program,
@@ -61,6 +50,15 @@ pub fn deinit(self: *Shader) void {
 pub fn use(self: *const Shader) void {
     c.glUseProgram(self.program);
     c.glBindVertexArray(self.vao);
+    // aPos x, y
+    c.glVertexAttribPointer(0, 2, c.GL_FLOAT, c.GL_FALSE, 8 * @sizeOf(f32), @ptrFromInt(0));
+    c.glEnableVertexAttribArray(0);
+    // aColor rgb
+    c.glVertexAttribPointer(1, 4, c.GL_FLOAT, c.GL_FALSE, 8 * @sizeOf(f32), @ptrFromInt(2 * @sizeOf(f32)));
+    c.glEnableVertexAttribArray(1);
+    // aUV
+    c.glVertexAttribPointer(2, 2, c.GL_FLOAT, c.GL_FALSE, 8 * @sizeOf(f32), @ptrFromInt(6 * @sizeOf(f32)));
+    c.glEnableVertexAttribArray(2);
 }
 
 pub fn use_none() void {

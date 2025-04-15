@@ -29,7 +29,7 @@ pub fn on_click(self: *Button, callback: *const fn () void) void {
 pub fn render(self: *Button) !void {
     var color = self.color_default;
 
-    if (self.rect.is_point_inside(ctx.mouse_x, ctx.mouse_y)) {
+    if (self.rect.is_inside(ctx.mouse_x, ctx.mouse_y)) {
         color = self.color_hover;
         if (ctx.mouse_left_pressed) {
             color = self.color_active;
@@ -42,7 +42,5 @@ pub fn render(self: *Button) !void {
     }
 
     try gl.shader_program_set(.{ .Default = {} });
-    gl.batch.begin();
-    try gl.batch.draw_rect(self.rect.x, self.rect.y, self.rect.width, self.rect.height, color);
-    try gl.batch.end();
+    try gl.draw_rect(self.rect, color);
 }

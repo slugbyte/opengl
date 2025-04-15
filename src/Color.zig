@@ -5,6 +5,10 @@ g: u8 = 0,
 b: u8 = 0,
 a: u8 = 255,
 
+pub fn init(r: u8, g: u8, b: u8, a: u8) Color {
+    return Color{ .r = r, .g = g, .b = b, .a = a };
+}
+
 pub const White = Color{
     .r = 255,
     .g = 255,
