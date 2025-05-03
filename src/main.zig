@@ -13,6 +13,8 @@ const Texture = @import("./Texture.zig");
 const Color = @import("./Color.zig");
 const Dot = @import("./Dot.zig");
 const Button = @import("./Button.zig");
+const Rect = @import("./Rect.zig");
+const gui = @import("gui.zig");
 
 var button_state: i32 = 0;
 fn button_callback() void {
@@ -68,6 +70,7 @@ pub fn main() !void {
     var button = Button.init(100, 100, 100, 50);
     button.on_click(&button_callback);
 
+    var slider_value: f32 = 0;
     while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
         c.glfwPollEvents();
         ctx.update_begin();
@@ -113,6 +116,15 @@ pub fn main() !void {
         try gl.batch.flush();
 
         try button.render();
+
+        if (try gui.button(@src(), Rect.init(500, 500, 50, 20))) {
+            std.debug.print("booooom im_button!\n", .{});
+            _ = c.glfwSetWindowShouldClose(window, c.GLFW_TRUE);
+        }
+
+        slider_value = try gui.slider(@src(), Rect.init(100, 100, 50, 200), slider_value);
+        // _ = slider_value;
+        std.debug.print("slider_value: {d}\n", .{slider_value});
 
         ctx.update_end();
         ctx.debug_hud_print();

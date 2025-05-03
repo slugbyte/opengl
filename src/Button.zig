@@ -28,8 +28,7 @@ pub fn on_click(self: *Button, callback: *const fn () void) void {
 
 pub fn render(self: *Button) !void {
     var color = self.color_default;
-
-    if (self.rect.is_inside(ctx.mouse_x, ctx.mouse_y)) {
+    if (self.rect.contians(ctx.cursor)) {
         color = self.color_hover;
         if (ctx.mouse_left_pressed) {
             color = self.color_active;

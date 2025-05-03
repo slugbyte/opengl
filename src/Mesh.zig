@@ -41,8 +41,8 @@ pub fn init(capacity: c_uint) Mesh {
 }
 
 pub fn deinit(self: Mesh) void {
-    c.glDeleteVertexArrays(1, self.vao);
-    c.glDeleteBuffers(1, self.vbo);
+    c.glDeleteVertexArrays(1, &self.vao);
+    c.glDeleteBuffers(1, &self.vbo);
 }
 
 pub fn bind_vao(self: Mesh) void {

@@ -30,7 +30,7 @@ pub fn init(width: f32, height: f32, unit: Unit) Texture {
 }
 
 pub fn deinit(self: *Texture) void {
-    c.glDeleteTextures(1, self.id);
+    c.glDeleteTextures(1, &self.id);
 }
 
 /// bind Texture to GL_TEXTURE_2D

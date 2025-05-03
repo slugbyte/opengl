@@ -1,6 +1,9 @@
 const std = @import("std");
 const c = @import("./c.zig");
 const debug = @import("./debug.zig");
+const Point = @import("./Point.zig");
+
+const fnv = std.hash.Fnv1a_32;
 
 pub var prng: std.Random.Xoshiro256 = undefined;
 pub var rand: std.Random = undefined;
@@ -17,9 +20,13 @@ pub var fps: f32 = 60;
 pub var mouse_x: f32 = 0;
 pub var mouse_y: f32 = 0;
 
+pub var cursor: Point = Point{};
+
 pub var mouse_left_pressed: bool = false;
 pub var mouse_left_just_pressed: bool = false;
 pub var mouse_left_just_released: bool = false;
+
+pub var ui_active_id: u32 = 0;
 
 pub fn init() !void {
     prng = std.Random.DefaultPrng.init(100);
@@ -85,6 +92,10 @@ pub fn glfw_callback_framebuffer_resize(_: ?*c.GLFWwindow, width: c_int, height:
 pub fn glfw_callback_cursor_position(_: ?*c.GLFWwindow, x: f64, y: f64) callconv(.C) void {
     mouse_x = @floatCast(x);
     mouse_y = @floatCast(y);
+    cursor = Point{
+        .x = @floatCast(x),
+        .y = @floatCast(y),
+    };
 }
 
 pub fn glfw_callback_mouse_button(_: ?*c.GLFWwindow, button: c_int, action: c_int, _: c_int) callconv(.C) void {
@@ -97,4 +108,16 @@ pub fn glfw_callback_mouse_button(_: ?*c.GLFWwindow, button: c_int, action: c_in
             mouse_left_just_released = true;
         }
     }
+}
+
+pub fn src_to_id(src: std.builtin.SourceLocation, item: ?usize) u32 {
+    const _item = item orelse 0;
+    var hash = fnv.init();
+    hash.update(std.mem.asBytes(&src.file.ptr));
+    hash.update(std.mem.asBytes(&src.module.ptr));
+    hash.update(std.mem.asBytes(&src.line));
+    hash.update(std.mem.asBytes(&src.column));
+    hash.update(std.mem.asBytes(&src.column));
+    hash.update(std.mem.asBytes(&_item));
+    return hash.final();
 }
