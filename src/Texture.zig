@@ -1,3 +1,4 @@
+const std = @import("std");
 const c = @import("./c.zig");
 
 const ErrorTexture = error{
@@ -25,6 +26,33 @@ pub fn init(width: f32, height: f32, unit: Unit) Texture {
         .id = id,
         .width = width,
         .height = height,
+        .unit = unit,
+    };
+}
+
+pub fn init_with_image_data(data: []const u8, unit: Unit) Texture {
+    // TODO: optional mipmap?
+    var width: c_int = undefined;
+    var height: c_int = undefined;
+    var channels: c_int = undefined;
+    var id: c_uint = undefined;
+    const image_data = c.stbi_load_from_memory(@ptrCast(data), @intCast(data.len), &width, &height, &channels, 0);
+    defer c.stbi_image_free(image_data);
+    const image_pixel_format = switch (channels) {
+        4 => c.GL_RGBA,
+        else => c.GL_RGB,
+    };
+    c.glGenTextures(1, &id);
+    c.glActiveTexture(@intFromEnum(unit));
+    c.glBindTexture(c.GL_TEXTURE_2D, id);
+    c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGBA, @intCast(width), @intCast(height), 0, @intCast(image_pixel_format), c.GL_UNSIGNED_BYTE, image_data);
+    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_LINEAR);
+    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_LINEAR);
+
+    return Texture{
+        .id = id,
+        .width = @floatFromInt(width),
+        .height = @floatFromInt(height),
         .unit = unit,
     };
 }

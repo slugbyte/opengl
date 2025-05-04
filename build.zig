@@ -41,6 +41,10 @@ pub fn build(b: *std.Build) void {
         .root_module = exe_mod,
     });
 
+    exe.addCSourceFile(.{ .file = b.path("./src/stb/stb_image.c") });
+    // exe.addCSourceFile(.{ .file = b.path("./src/stb/stb_image_libc.c") });
+    exe.addIncludePath(b.path("./src/stb"));
+
     exe.linkLibC();
     exe.linkSystemLibrary("epoxy");
     exe.linkSystemLibrary("GL");

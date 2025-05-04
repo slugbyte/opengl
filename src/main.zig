@@ -15,6 +15,7 @@ const Dot = @import("./Dot.zig");
 const Button = @import("./Button.zig");
 const Rect = @import("./Rect.zig");
 const gui = @import("gui.zig");
+const image_data = @embedFile("./asset/example.png");
 
 var button_state: i32 = 0;
 fn button_callback() void {
@@ -30,6 +31,7 @@ pub fn main() !void {
         @panic("failed to init glfw");
     }
     defer c.glfwTerminate();
+    c.stbi_set_flip_vertically_on_load(1);
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 3);
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
@@ -55,6 +57,10 @@ pub fn main() !void {
         try dot_list.append(Dot.init());
     }
     const color_bg = Color.gray(25, 255);
+
+    // image_texture
+    var image = Texture.init_with_image_data(image_data, .T4);
+    defer image.deinit();
 
     // setup framebuffer and texture for drawing background
     var bg_texture = Texture.init(ctx.window_width, ctx.window_height, .T3);
@@ -106,6 +112,10 @@ pub fn main() !void {
         try gl.batch.draw_rect(0, 0, ctx.window_width, ctx.window_height, Color{});
         try gl.batch.flush();
 
+        // image
+        try gl.shader_program_set(.{ .Texture = image });
+        try gl.draw_rect(Rect.init(600, 700, image.width, image.height), Color{});
+
         // pallet
         const pallet_x = @divFloor(ctx.window_width, 2) - 125;
         const pallet_y = @divFloor(ctx.window_height, 6) - 125;
@@ -124,7 +134,7 @@ pub fn main() !void {
 
         slider_value = try gui.slider(@src(), Rect.init(100, 100, 50, 200), slider_value);
         // _ = slider_value;
-        std.debug.print("slider_value: {d}\n", .{slider_value});
+        // std.debug.print("slider_value: {d}\n", .{slider_value});
 
         ctx.update_end();
         ctx.debug_hud_print();
