@@ -129,7 +129,8 @@ pub fn main() !void {
 
         if (try gui.button(@src(), Rect.init(500, 500, 50, 20))) {
             std.debug.print("booooom im_button!\n", .{});
-            _ = c.glfwSetWindowShouldClose(window, c.GLFW_TRUE);
+            // _ = c.glfwSetWindowShouldClose(window, c.GLFW_TRUE);
+            try bg_texture.write_png(allocator, "./wat.png");
         }
 
         slider_value = try gui.slider(@src(), Rect.init(100, 100, 50, 200), slider_value);

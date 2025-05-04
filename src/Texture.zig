@@ -3,6 +3,7 @@ const c = @import("./c.zig");
 
 const ErrorTexture = error{
     ResizeWithMipmapNotPossible,
+    FilewriteFailed,
 };
 
 const Texture = @This();
@@ -59,6 +60,26 @@ pub fn init_with_image_data(data: []const u8, unit: Unit) Texture {
 
 pub fn deinit(self: *Texture) void {
     c.glDeleteTextures(1, &self.id);
+}
+
+pub fn write_png(self: *Texture, allocator: std.mem.Allocator, path: []const u8) !void {
+    const width: usize = @intFromFloat(self.width);
+    const height: usize = @intFromFloat(self.height);
+    const size: usize = width * height * 4;
+    std.debug.print("width: {} hegiht: {} size: {}\n", .{ width, height, size });
+
+    const image_data = try allocator.alloc(u8, size);
+    defer allocator.free(image_data);
+    std.debug.print("cool\n", .{});
+
+    self.bind();
+    c.glGetTexImage(c.GL_TEXTURE_2D, 0, c.GL_RGBA, c.GL_UNSIGNED_BYTE, @ptrCast(image_data.ptr));
+    // TODO: how to handle glGetTexImage errors ?
+    std.debug.print("beans\n", .{});
+
+    if (0 == c.stbi_write_png(@ptrCast(path), @intCast(width), @intCast(height), 4, @ptrCast(image_data), @intCast(width * 4))) {
+        return ErrorTexture.FilewriteFailed;
+    }
 }
 
 /// bind Texture to GL_TEXTURE_2D

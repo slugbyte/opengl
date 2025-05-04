@@ -3,8 +3,9 @@
 tryin to learn me some opengl
 
 ## TODO
-* render images
 * render fonts
+* worker thread pool for async tasks
+  * file io
 * more basic render fns
 * Button + Double Click
 * Slider
