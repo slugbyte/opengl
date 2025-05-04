@@ -40,7 +40,7 @@ pub fn deinit() void {
     shader_default.deinit();
     shader_texture.deinit();
     shader_circle.deinit();
-    c.glDeleteBuffers(1, vbo);
+    c.glDeleteBuffers(1, &vbo);
 }
 
 pub fn blend_mode_set(mode: BlendMode) void {

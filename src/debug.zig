@@ -19,3 +19,7 @@ pub fn hud_end() void {
     }
     line_count = 0;
 }
+
+pub fn clear() void {
+    std.debug.print("\x1B[2J\x1B[H", .{});
+}

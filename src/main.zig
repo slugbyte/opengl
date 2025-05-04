@@ -5,6 +5,8 @@
 const std = @import("std");
 const c = @import("./c.zig");
 const ctx = @import("./context.zig");
+const debug = @import("./debug.zig");
+const config = @import("config");
 
 const gl = @import("./gl.zig");
 const Shader = @import("./Shader.zig");
@@ -26,6 +28,11 @@ fn button_callback() void {
 pub fn main() !void {
     var debug_allocator = std.heap.DebugAllocator(.{}){};
     const allocator = debug_allocator.allocator();
+
+    // if (config.debug_exit) {
+    //     std.debug.print("debug_exit\n", .{});
+    //     return error.debug_exit;
+    // }
 
     if (c.glfwInit() == c.GLFW_FALSE) {
         @panic("failed to init glfw");
@@ -127,10 +134,16 @@ pub fn main() !void {
 
         try button.render();
 
-        if (try gui.button(@src(), Rect.init(500, 500, 50, 20))) {
-            std.debug.print("booooom im_button!\n", .{});
-            // _ = c.glfwSetWindowShouldClose(window, c.GLFW_TRUE);
-            try bg_texture.write_png(allocator, "./wat.png");
+        // quit button
+        if (try gui.button(@src(), Rect.init(ctx.window_width - 55, 5, 50, 50))) {
+            _ = c.glfwSetWindowShouldClose(window, c.GLFW_TRUE);
+        }
+
+        // write png button
+        if (try gui.button(@src(), Rect.init(ctx.window_width - 55, 60, 50, 50))) {
+            try bg_texture.write_png(allocator, config.debug_png_out);
+            debug.clear();
+            std.debug.print("wrote debug_png_out to {s}\n", .{config.debug_png_out});
         }
 
         slider_value = try gui.slider(@src(), Rect.init(100, 100, 50, 200), slider_value);
@@ -141,4 +154,7 @@ pub fn main() !void {
         ctx.debug_hud_print();
         c.glfwSwapBuffers(window);
     }
+
+    debug.clear();
+    std.debug.print("bye!", .{});
 }

@@ -34,6 +34,16 @@ pub fn build(b: *std.Build) void {
     exe_mod.linkSystemLibrary("glfw", .{});
     exe_mod.linkSystemLibrary("epoxy", .{});
 
+    // exe options
+    var options = b.addOptions();
+
+    // b.option lets you have build option "zig build -Ddebug_exit=true"
+    const build_exit = b.option(bool, "debug_exit", "is the app gunna be funny") orelse false;
+    options.addOption(bool, "debug_exit", build_exit);
+
+    const debug_png_out = b.option([]const u8, "debug_png_out", "path to where to store debug_png_out") orelse "./debug.png";
+    options.addOption([]const u8, "debug_png_out", debug_png_out);
+
     // This creates another `std.Build.Step.Compile`, but this one builds an executable
     // rather than a static library.
     const exe = b.addExecutable(.{
@@ -41,9 +51,14 @@ pub fn build(b: *std.Build) void {
         .root_module = exe_mod,
     });
 
+    // add exe build options as a module
+    exe.root_module.addOptions("config", options);
+
+    // add c source
     exe.addCSourceFile(.{ .file = b.path("./src/stb/stb_impl.c") });
     exe.addIncludePath(b.path("./src/stb"));
 
+    // link external
     exe.linkLibC();
     exe.linkSystemLibrary("epoxy");
     exe.linkSystemLibrary("GL");
