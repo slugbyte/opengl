@@ -15,7 +15,7 @@ const Dot = @import("./Dot.zig");
 const Button = @import("./Button.zig");
 const Rect = @import("./Rect.zig");
 const gui = @import("gui.zig");
-const image_data = @embedFile("./asset/example.png");
+const image_data = @embedFile("./asset/bing.jpg");
 
 var button_state: i32 = 0;
 fn button_callback() void {
