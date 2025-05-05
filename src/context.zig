@@ -27,6 +27,7 @@ pub var mouse_left_just_pressed: bool = false;
 pub var mouse_left_just_released: bool = false;
 
 pub var ui_active_id: u32 = 0;
+pub var ui_hot_id: u32 = 0;
 
 pub fn init() !void {
     prng = std.Random.DefaultPrng.init(100);
@@ -39,8 +40,19 @@ pub fn update_begin() void {
 
 pub fn update_end() void {
     window_has_resized = false;
+    if (mouse_left_just_released) {
+        ui_active_id = 0;
+    }
     mouse_left_just_pressed = false;
     mouse_left_just_released = false;
+}
+
+pub fn id_is_hot(id: u32) bool {
+    return id == ui_hot_id;
+}
+
+pub fn id_is_active(id: u32) bool {
+    return id == ui_active_id;
 }
 
 // generate a random i32 between range and cast it as a float
@@ -103,7 +115,9 @@ pub fn glfw_callback_mouse_button(_: ?*c.GLFWwindow, button: c_int, action: c_in
         if (action == c.GLFW_PRESS) {
             mouse_left_pressed = true;
             mouse_left_just_pressed = true;
-        } else {
+        }
+
+        if (action == c.GLFW_RELEASE) {
             mouse_left_pressed = false;
             mouse_left_just_released = true;
         }

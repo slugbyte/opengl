@@ -1,4 +1,5 @@
 const std = @import("std");
+const config = @import("config");
 
 var line_count: u32 = 0;
 
@@ -22,4 +23,10 @@ pub fn hud_end() void {
 
 pub fn clear() void {
     std.debug.print("\x1B[2J\x1B[H", .{});
+}
+
+pub fn exit() void {
+    if (config.debug_exit) {
+        @panic("debug.exit()!");
+    }
 }

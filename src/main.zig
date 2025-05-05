@@ -14,26 +14,17 @@ const Framebuffer = @import("./Framebuffer.zig");
 const Texture = @import("./Texture.zig");
 const Color = @import("./Color.zig");
 const Dot = @import("./Dot.zig");
+const Size = @import("./Size.zig");
 const Button = @import("./Button.zig");
 const Rect = @import("./Rect.zig");
 const gui = @import("gui.zig");
 const image_data = @embedFile("./asset/bing.jpg");
 
 var button_state: i32 = 0;
-fn button_callback() void {
-    ctx.inspect("boom {d}", .{button_state});
-    button_state += 1;
-}
 
 pub fn main() !void {
     var debug_allocator = std.heap.DebugAllocator(.{}){};
     const allocator = debug_allocator.allocator();
-
-    // if (config.debug_exit) {
-    //     std.debug.print("debug_exit\n", .{});
-    //     return error.debug_exit;
-    // }
-
     if (c.glfwInit() == c.GLFW_FALSE) {
         @panic("failed to init glfw");
     }
@@ -80,10 +71,11 @@ pub fn main() !void {
     bg_framebuffer.bind_zero();
 
     // setup button
-    var button = Button.init(100, 100, 100, 50);
-    button.on_click(&button_callback);
+    // var button = Button.init(100, 100, 100, 50);
+    // button.on_click(&button_callback);
 
     var slider_value: f32 = 0;
+
     while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
         c.glfwPollEvents();
         ctx.update_begin();
@@ -114,10 +106,10 @@ pub fn main() !void {
         try gl.batch.flush();
         bg_framebuffer.bind_zero();
 
-        bg_texture.bind();
-        try gl.shader_program_set(.{ .Texture = bg_texture });
-        try gl.batch.draw_rect(0, 0, ctx.window_width, ctx.window_height, Color{});
-        try gl.batch.flush();
+        // bg_texture.bind();
+        // try gl.shader_program_set(.{ .Texture = bg_texture });
+        // try gl.batch.draw_rect(0, 0, ctx.window_width, ctx.window_height, Color{});
+        // try gl.batch.flush();
 
         // image
         try gl.shader_program_set(.{ .Texture = image });
@@ -132,7 +124,7 @@ pub fn main() !void {
         try gl.batch.draw_rect(pallet_x, pallet_y + 255, 250, 50, Color{});
         try gl.batch.flush();
 
-        try button.render();
+        // try button.render();
 
         // quit button
         if (try gui.button(@src(), Rect.init(ctx.window_width - 55, 5, 50, 50))) {
@@ -146,12 +138,23 @@ pub fn main() !void {
             std.debug.print("wrote debug_png_out to {s}\n", .{config.debug_png_out});
         }
 
-        slider_value = try gui.slider(@src(), Rect.init(100, 100, 50, 200), slider_value);
-        // _ = slider_value;
-        // std.debug.print("slider_value: {d}\n", .{slider_value});
+        slider_value = try gui.slider(@src(), Rect.init(10, (ctx.window_height / 2) - 100, 50, 200), slider_value);
+
+        var cursor = gui.Cursor.init(10, 10);
+        cursor.switch_direction();
+        if (try gui.cursor_button(@src(), &cursor, Size.init(100, 50))) {
+            std.debug.print("boom1\n", .{});
+        }
+        if (try gui.cursor_button(@src(), &cursor, Size.init(150, 50))) {
+            std.debug.print("boom2\n", .{});
+        }
+        if (try gui.cursor_button(@src(), &cursor, Size.init(50, 50))) {
+            std.debug.print("boom3\n", .{});
+        }
 
         ctx.update_end();
-        ctx.debug_hud_print();
+        // ctx.debug_hud_print();
+        // std.debug.print("cursor: {any}\n", .{cursor});
         c.glfwSwapBuffers(window);
     }
 
