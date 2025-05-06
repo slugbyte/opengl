@@ -83,6 +83,17 @@ pub fn clear(color: Color) void {
     c.glClear(c.GL_COLOR_BUFFER_BIT);
 }
 
+pub fn scisor_begin(rect: Rect) void {
+    c.glEnable(c.GL_SCISSOR_TEST);
+    // flip y axis for opengl cords
+    const y: f32 = (ctx.window_height - 1) - rect.y - rect.height + 1;
+    c.glScissor(@intFromFloat(rect.x), @intFromFloat(y), @intFromFloat(rect.width), @intFromFloat(rect.height));
+}
+
+pub fn scisor_end() void {
+    c.glDisable(c.GL_SCISSOR_TEST);
+}
+
 pub fn eyedroper(x: f32, y: f32) Color {
     var width: c_int = undefined;
     var height: c_int = undefined;

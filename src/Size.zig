@@ -9,3 +9,10 @@ pub fn init(width: f32, height: f32) Size {
         .height = height,
     };
 }
+
+pub fn add(self: Size, size: Size) Size {
+    return Size{
+        .width = self.width + size.width,
+        .height = self.height + size.height,
+    };
+}

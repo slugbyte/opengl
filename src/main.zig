@@ -1,5 +1,5 @@
-//! By convention, main.zig is where your main function lives in the case that
-//! you are building an executable. If you are making a library, the convention
+// ! By convention, main.zig is where your main function lives in the case that
+// ! you are building an executable. If you are making a library, the convention
 //! is to delete this file and start with root.zig instead.
 
 const std = @import("std");
@@ -14,8 +14,8 @@ const Framebuffer = @import("./Framebuffer.zig");
 const Texture = @import("./Texture.zig");
 const Color = @import("./Color.zig");
 const Dot = @import("./Dot.zig");
+const Vec = @import("./Vec.zig");
 const Size = @import("./Size.zig");
-const Button = @import("./Button.zig");
 const Rect = @import("./Rect.zig");
 const gui = @import("gui.zig");
 const image_data = @embedFile("./asset/bing.jpg");
@@ -23,6 +23,7 @@ const image_data = @embedFile("./asset/bing.jpg");
 var button_state: i32 = 0;
 
 pub fn main() !void {
+    std.debug.print("All your pixels are blong to us!\n", .{});
     var debug_allocator = std.heap.DebugAllocator(.{}){};
     const allocator = debug_allocator.allocator();
     if (c.glfwInit() == c.GLFW_FALSE) {
@@ -76,6 +77,10 @@ pub fn main() !void {
 
     var slider_value: f32 = 0;
 
+    var stack_x_target: f32 = 0;
+    var stack_y_target: f32 = 0;
+    var stack_x: f32 = stack_x_target;
+    var stack_y: f32 = stack_y_target;
     while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
         c.glfwPollEvents();
         ctx.update_begin();
@@ -97,7 +102,7 @@ pub fn main() !void {
             try dot_item.render();
         }
         try gl.batch.flush();
-
+        //
         try gl.shader_program_set(.{ .Default = {} });
         for (dot_list.items) |*dot_item| {
             dot_item.update();
@@ -106,10 +111,10 @@ pub fn main() !void {
         try gl.batch.flush();
         bg_framebuffer.bind_zero();
 
-        // bg_texture.bind();
-        // try gl.shader_program_set(.{ .Texture = bg_texture });
-        // try gl.batch.draw_rect(0, 0, ctx.window_width, ctx.window_height, Color{});
-        // try gl.batch.flush();
+        bg_texture.bind();
+        try gl.shader_program_set(.{ .Texture = bg_texture });
+        try gl.batch.draw_rect(0, 0, ctx.window_width, ctx.window_height, Color{});
+        try gl.batch.flush();
 
         // image
         try gl.shader_program_set(.{ .Texture = image });
@@ -124,33 +129,72 @@ pub fn main() !void {
         try gl.batch.draw_rect(pallet_x, pallet_y + 255, 250, 50, Color{});
         try gl.batch.flush();
 
-        // try button.render();
+        gui.begin(ctx.mouse);
 
-        // quit button
-        if (try gui.button(@src(), Rect.init(ctx.window_width - 55, 5, 50, 50))) {
-            _ = c.glfwSetWindowShouldClose(window, c.GLFW_TRUE);
+        if (stack_x != stack_x_target) {
+            stack_x = gui.lerp(stack_x, stack_x_target, 1.5);
         }
+        if (stack_y != stack_y_target) {
+            stack_y = gui.lerp(stack_y, stack_y_target, 0.5);
+        }
+        var stack = try gui.stack_h(@src(), Vec.init(stack_x, stack_y), Size{ .width = 500, .height = 500 }, Color.gray(250, 250));
+        const button_size = Size.init(stack.percent_width(0.25), 50);
+        const posA = stack.next(button_size);
+        const posB = stack.next(button_size);
+        const posC = stack.next(button_size);
+        const posD = stack.next(button_size);
+        if (try gui.button_rect(@src(), Rect.init_point_size(posA, button_size), .{ .color_default = Color.Green })) {
+            stack_x_target += 150;
+            stack_x_target = std.math.clamp(stack_x, 0, ctx.window_width - stack.size.width);
+            std.debug.print("green \n", .{});
+        }
+
+        if (try gui.button_rect(@src(), Rect.init_point_size(posB, button_size), .{ .color_default = Color.Red })) {
+            stack_x_target -= 150;
+            stack_x_target = std.math.clamp(stack_x, 0, ctx.window_width - stack.size.width);
+            std.debug.print("blue\n", .{});
+        }
+
+        if (try gui.button_rect(@src(), Rect.init_point_size(posC, button_size), .{ .color_default = Color.Pink })) {
+            stack_y_target += 25;
+            stack_y_target = std.math.clamp(stack_y, 0, ctx.window_height);
+            std.debug.print("blue\n", .{});
+        }
+
+        if (try gui.button_rect(@src(), Rect.init_point_size(posD, button_size), .{ .color_default = Color.Blue })) {
+            stack_y_target -= 25;
+            stack_y_target = std.math.clamp(stack_y, 0, ctx.window_height);
+            std.debug.print("blue\n", .{});
+        }
+
+        stack.end();
+
+        // quit buttn
+        // if (try gui.button_rect(@src(), Rect.init(ctx.window_width - 55, 5, 50, 50), .{})) {
+        //     _ = c.glfwSetWindowShouldClose(window, c.GLFW_TRUE);
+        // }
 
         // write png button
-        if (try gui.button(@src(), Rect.init(ctx.window_width - 55, 60, 50, 50))) {
-            try bg_texture.write_png(allocator, config.debug_png_out);
-            debug.clear();
-            std.debug.print("wrote debug_png_out to {s}\n", .{config.debug_png_out});
-        }
-
+        // if (try gui.button_rect(@src(), Rect.init(ctx.window_width - 55, 60, 50, 50), .{})) {
+        //     try bg_texture.write_png(allocator, config.debug_png_out);
+        //     debug.clear();
+        //     std.debug.print("wrote debug_png_out to {s}\n", .{config.debug_png_out});
+        // }
+        //
         slider_value = try gui.slider(@src(), Rect.init(10, (ctx.window_height / 2) - 100, 50, 200), slider_value);
 
-        var cursor = gui.Cursor.init(10, 10);
-        cursor.switch_direction();
-        if (try gui.cursor_button(@src(), &cursor, Size.init(100, 50))) {
-            std.debug.print("boom1\n", .{});
-        }
-        if (try gui.cursor_button(@src(), &cursor, Size.init(150, 50))) {
-            std.debug.print("boom2\n", .{});
-        }
-        if (try gui.cursor_button(@src(), &cursor, Size.init(50, 50))) {
-            std.debug.print("boom3\n", .{});
-        }
+        // var cursor = gui.Cursor.init(800, 10);
+        // cursor.switch_direction();
+        // if (try gui.button(@src(), &cursor, Size.init(100, 50), .{ .color_default = Color.init(200, 100, 200, 255) })) {
+        //     std.debug.print("boom1\n", .{});
+        // }
+        // if (try gui.button(@src(), &cursor, Size.init(150, 50), .{})) {
+        //     std.debug.print("boom2\n", .{});
+        // }
+        // if (try gui.button(@src(), &cursor, Size.init(50, 50), .{})) {
+        //     std.debug.print("boom3\n", .{});
+        // }
+        gui.end();
 
         ctx.update_end();
         // ctx.debug_hud_print();

@@ -1,7 +1,8 @@
 const std = @import("std");
 const c = @import("./c.zig");
 const debug = @import("./debug.zig");
-const Point = @import("./Point.zig");
+const Mouse = @import("./Mouse.zig");
+const Vec = @import("./Vec.zig");
 
 const fnv = std.hash.Fnv1a_32;
 
@@ -17,17 +18,7 @@ pub var time_delta: f32 = 0;
 
 pub var fps: f32 = 60;
 
-pub var mouse_x: f32 = 0;
-pub var mouse_y: f32 = 0;
-
-pub var cursor: Point = Point{};
-
-pub var mouse_left_pressed: bool = false;
-pub var mouse_left_just_pressed: bool = false;
-pub var mouse_left_just_released: bool = false;
-
-pub var ui_active_id: u32 = 0;
-pub var ui_hot_id: u32 = 0;
+pub var mouse: Mouse = Mouse{};
 
 pub fn init() !void {
     prng = std.Random.DefaultPrng.init(100);
@@ -40,19 +31,7 @@ pub fn update_begin() void {
 
 pub fn update_end() void {
     window_has_resized = false;
-    if (mouse_left_just_released) {
-        ui_active_id = 0;
-    }
-    mouse_left_just_pressed = false;
-    mouse_left_just_released = false;
-}
-
-pub fn id_is_hot(id: u32) bool {
-    return id == ui_hot_id;
-}
-
-pub fn id_is_active(id: u32) bool {
-    return id == ui_active_id;
+    mouse.update_end();
 }
 
 // generate a random i32 between range and cast it as a float
@@ -73,7 +52,7 @@ pub fn info(comptime msg: []const u8) void {
 pub fn debug_hud_print() void {
     debug.hud_start();
     debug.hud_println("fps: {d:<5}", .{fps});
-    debug.hud_println("mouse: {d:>5}x {d:>5}y", .{ mouse_x, mouse_y });
+    debug.hud_println("{}", .{mouse});
     debug.hud_println("window size {d:>5}w {d:>5}h", .{ window_width, window_height });
     debug.hud_end();
 }
@@ -102,9 +81,7 @@ pub fn glfw_callback_framebuffer_resize(_: ?*c.GLFWwindow, width: c_int, height:
 }
 
 pub fn glfw_callback_cursor_position(_: ?*c.GLFWwindow, x: f64, y: f64) callconv(.C) void {
-    mouse_x = @floatCast(x);
-    mouse_y = @floatCast(y);
-    cursor = Point{
+    mouse.pos = Vec{
         .x = @floatCast(x),
         .y = @floatCast(y),
     };
@@ -113,13 +90,13 @@ pub fn glfw_callback_cursor_position(_: ?*c.GLFWwindow, x: f64, y: f64) callconv
 pub fn glfw_callback_mouse_button(_: ?*c.GLFWwindow, button: c_int, action: c_int, _: c_int) callconv(.C) void {
     if (button == c.GLFW_MOUSE_BUTTON_LEFT) {
         if (action == c.GLFW_PRESS) {
-            mouse_left_pressed = true;
-            mouse_left_just_pressed = true;
+            mouse.left_pressed = true;
+            mouse.left_just_pressed = true;
         }
 
         if (action == c.GLFW_RELEASE) {
-            mouse_left_pressed = false;
-            mouse_left_just_released = true;
+            mouse.left_pressed = false;
+            mouse.left_just_released = true;
         }
     }
 }

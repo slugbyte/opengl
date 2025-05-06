@@ -1,3 +1,5 @@
+const std = @import("std");
+
 const Color = @This();
 
 r: u8 = 0,
@@ -9,6 +11,27 @@ pub fn init(r: u8, g: u8, b: u8, a: u8) Color {
     return Color{ .r = r, .g = g, .b = b, .a = a };
 }
 
+pub fn init_hexcode(comptime hexcode: []const u8, alpha: u8) Color {
+    if (hexcode.len != 7) {
+        @compileError("init_hexcode should be 7 digets #rrggbb");
+    }
+    const r: u8 = std.fmt.parseInt(u8, hexcode[1..3], 16) catch {
+        @compileError("init_hexcode r not parsable");
+    };
+    const g: u8 = std.fmt.parseInt(u8, hexcode[3..5], 16) catch {
+        @compileError("init_hexcode g not parsable");
+    };
+    const b: u8 = std.fmt.parseInt(u8, hexcode[5..7], 16) catch {
+        @compileError("init_hexcode b not parsable");
+    };
+    return Color{
+        .r = r,
+        .g = g,
+        .b = b,
+        .a = alpha,
+    };
+}
+
 pub const White = Color{
     .r = 255,
     .g = 255,
@@ -17,6 +40,12 @@ pub const White = Color{
 };
 
 pub const Black = Color{};
+
+pub const Green = Color.init_hexcode("#78FF78", 255);
+pub const Blue = Color.init_hexcode("#7788AA", 255);
+pub const Red = Color.init(255, 0, 0, 255);
+pub const Yellow = Color.init(255, 255, 0, 255);
+pub const Pink = Color.init(255, 0, 255, 255);
 
 pub fn gray(value: u8, alpha: u8) Color {
     return Color{
@@ -47,4 +76,11 @@ pub inline fn gl_vertex(self: *const Color) [4]f32 {
         self.gl_b(),
         self.gl_a(),
     };
+}
+
+pub fn format(self: Color, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+    _ = fmt;
+    _ = options;
+
+    try writer.print("Color({d}, {d}, {d}, {d})", .{ self.r, self.g, self.b, self.a });
 }
