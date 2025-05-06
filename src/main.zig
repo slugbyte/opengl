@@ -22,6 +22,13 @@ const image_data = @embedFile("./asset/bing.jpg");
 
 var button_state: i32 = 0;
 
+fn inc_button(src: std.builtin.SourceLocation, value: *f32, inc: f32, pos: Vec, size: Size) !void {
+    if (try gui.button_rect(src, Rect.init_point_size(pos, size), .{ .color_default = Color.Green })) {
+        value.* += inc;
+        value.* = std.math.clamp(value.*, 0, ctx.window_width);
+    }
+}
+
 pub fn main() !void {
     std.debug.print("All your pixels are blong to us!\n", .{});
     var debug_allocator = std.heap.DebugAllocator(.{}){};
@@ -143,11 +150,13 @@ pub fn main() !void {
         const posB = stack.next(button_size);
         const posC = stack.next(button_size);
         const posD = stack.next(button_size);
-        if (try gui.button_rect(@src(), Rect.init_point_size(posA, button_size), .{ .color_default = Color.Green })) {
-            stack_x_target += 150;
-            stack_x_target = std.math.clamp(stack_x, 0, ctx.window_width - stack.size.width);
-            std.debug.print("green \n", .{});
-        }
+
+        try inc_button(@src(), &stack_y_target, 1450, posA, button_size);
+        // if (try gui.button_rect(@src(), Rect.init_point_size(posA, button_size), .{ .color_default = Color.Green })) {
+        //     stack_x_target += 150;
+        //     stack_x_target = std.math.clamp(stack_x, 0, ctx.window_width - stack.size.width);
+        //     std.debug.print("green \n", .{});
+        // }
 
         if (try gui.button_rect(@src(), Rect.init_point_size(posB, button_size), .{ .color_default = Color.Red })) {
             stack_x_target -= 150;
