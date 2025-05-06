@@ -139,10 +139,10 @@ pub fn main() !void {
         gui.begin(ctx.mouse);
 
         if (stack_x != stack_x_target) {
-            stack_x = gui.lerp(stack_x, stack_x_target, 1.5);
+            stack_x = gui.lerp(stack_x, stack_x_target, 0.1);
         }
         if (stack_y != stack_y_target) {
-            stack_y = gui.lerp(stack_y, stack_y_target, 0.5);
+            stack_y = gui.lerp(stack_y, stack_y_target, 0.1);
         }
         var stack = try gui.stack_h(@src(), Vec.init(stack_x, stack_y), Size{ .width = 500, .height = 500 }, Color.gray(250, 250));
         const button_size = Size.init(stack.percent_width(0.25), 50);
@@ -151,30 +151,10 @@ pub fn main() !void {
         const posC = stack.next(button_size);
         const posD = stack.next(button_size);
 
-        try inc_button(@src(), &stack_y_target, 1450, posA, button_size);
-        // if (try gui.button_rect(@src(), Rect.init_point_size(posA, button_size), .{ .color_default = Color.Green })) {
-        //     stack_x_target += 150;
-        //     stack_x_target = std.math.clamp(stack_x, 0, ctx.window_width - stack.size.width);
-        //     std.debug.print("green \n", .{});
-        // }
-
-        if (try gui.button_rect(@src(), Rect.init_point_size(posB, button_size), .{ .color_default = Color.Red })) {
-            stack_x_target -= 150;
-            stack_x_target = std.math.clamp(stack_x, 0, ctx.window_width - stack.size.width);
-            std.debug.print("blue\n", .{});
-        }
-
-        if (try gui.button_rect(@src(), Rect.init_point_size(posC, button_size), .{ .color_default = Color.Pink })) {
-            stack_y_target += 25;
-            stack_y_target = std.math.clamp(stack_y, 0, ctx.window_height);
-            std.debug.print("blue\n", .{});
-        }
-
-        if (try gui.button_rect(@src(), Rect.init_point_size(posD, button_size), .{ .color_default = Color.Blue })) {
-            stack_y_target -= 25;
-            stack_y_target = std.math.clamp(stack_y, 0, ctx.window_height);
-            std.debug.print("blue\n", .{});
-        }
+        try inc_button(@src(), &stack_x_target, -150, posA, button_size);
+        try inc_button(@src(), &stack_y_target, 150, posB, button_size);
+        try inc_button(@src(), &stack_y_target, -150, posC, button_size);
+        try inc_button(@src(), &stack_x_target, 150, posD, button_size);
 
         stack.end();
 
