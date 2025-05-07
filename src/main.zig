@@ -31,13 +31,13 @@ fn inc_button(src: std.builtin.SourceLocation, value: *f32, inc: f32, pos: Vec, 
 
 pub fn main() !void {
     std.debug.print("All your pixels are blong to us!\n", .{});
+
     var debug_allocator = std.heap.DebugAllocator(.{}){};
     const allocator = debug_allocator.allocator();
     if (c.glfwInit() == c.GLFW_FALSE) {
         @panic("failed to init glfw");
     }
     defer c.glfwTerminate();
-    c.stbi_set_flip_vertically_on_load(1);
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 3);
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
@@ -46,8 +46,11 @@ pub fn main() !void {
     if (window == null) {
         @panic("glfw failed to create window");
     }
+
     c.glfwMakeContextCurrent(window);
     c.glfwSwapInterval(1);
+
+    c.stbi_set_flip_vertically_on_load(1);
 
     try ctx.init();
     try gl.init(allocator);
