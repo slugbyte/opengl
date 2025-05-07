@@ -1,8 +1,16 @@
 const std = @import("std");
-const ctx = @import("./context.zig");
 const window = @import("./Window.zig");
 const gl = @import("./gl.zig");
 const Color = @import("./Color.zig");
+const fnv = std.hash.Fnv1a_32;
+
+var prng: std.Random.Xoshiro256 = std.Random.DefaultPrng.init(100);
+var rand: std.Random = prng.random();
+
+// generate a random i32 between range and cast it as a float
+fn random(min: f32, max: f32) f32 {
+    return @floatFromInt(rand.intRangeLessThan(i32, @intFromFloat(min), @intFromFloat(max)));
+}
 
 const Dot = @This();
 
@@ -21,37 +29,37 @@ color: Color = Color.White,
 should_darken: bool = false,
 
 pub fn init() Dot {
-    const gray = ctx.rand.int(u8);
-    const size = ctx.random(2, 100);
-    const x_flip: f32 = if (ctx.rand.boolean()) -1 else 1;
+    const gray = rand.int(u8);
+    const size = random(2, 100);
+    const x_flip: f32 = if (rand.boolean()) -1 else 1;
     return Dot{
-        .x = ctx.random(0, window.size.width),
-        .y = ctx.random(-100, window.size.height),
+        .x = random(0, window.size.width),
+        .y = random(-100, window.size.height),
         .size = size,
-        .x_speed = ctx.random(2, 6) * x_flip,
-        .y_speed = ctx.random(2, 6),
+        .x_speed = random(2, 6) * x_flip,
+        .y_speed = random(2, 6),
         .color = Color.gray(gray, 200),
-        .should_darken = ctx.rand.boolean(),
+        .should_darken = rand.boolean(),
     };
 }
 
 pub fn update(self: *Dot) void {
     if (window.has_resized) {
-        self.x = ctx.random(-100, window.size.width + 100);
-        self.y = ctx.random(-100, window.size.height + 100);
+        self.x = random(-100, window.size.width + 100);
+        self.y = random(-100, window.size.height + 100);
     }
-    if (ctx.rand.float(f32) < 0.01) {
-        self.x = ctx.random(-100, window.size.width + 100);
-        self.y = ctx.random(-100, window.size.height + 100);
-        self.color = Color.gray(ctx.rand.int(u8), 200);
-        self.size = ctx.random(2, 50);
+    if (rand.float(f32) < 0.01) {
+        self.x = random(-100, window.size.width + 100);
+        self.y = random(-100, window.size.height + 100);
+        self.color = Color.gray(rand.int(u8), 200);
+        self.size = random(2, 50);
     }
-    if (ctx.rand.float(f32) < 0.3) {
+    if (rand.float(f32) < 0.3) {
         self.size = std.math.clamp(self.size - 1, 10, 100);
-        self.y_speed = ctx.random(2, 6);
-        self.x_speed = ctx.random(-3, 3);
+        self.y_speed = random(2, 6);
+        self.x_speed = random(-3, 3);
     }
-    if (ctx.rand.float(f32) < 0.1) {
+    if (rand.float(f32) < 0.1) {
         if (self.should_darken) {
             self.color = Color.gray(self.color.r -| 5, 200);
         } else {

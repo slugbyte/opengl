@@ -23,17 +23,6 @@ pub const WindowOptions = struct {
     opengl_version_minor: c_int = 3,
 };
 
-pub const MouseButton = enum(c_int) {
-    Left = c.GLFW_MOUSE_BUTTON_LEFT,
-    Right = c.GLFW_MOUSE_BUTTON_RIGHT,
-    Middel = c.GLFW_MOUSE_BUTTON_MIDDLE,
-};
-
-pub const MouseButtonAction = enum(c_int) {
-    Press = c.GLFW_PRESS,
-    Release = c.GLFW_RELEASE,
-};
-
 pub fn init(title: []const u8, opt: WindowOptions) !void {
     if (c.glfwInit() == c.GLFW_FALSE) {
         return Error.GLFWInitFailed;
@@ -61,6 +50,10 @@ pub fn init(title: []const u8, opt: WindowOptions) !void {
 pub fn deinit() void {
     c.glfwDestroyWindow(glfw_window);
     c.glfwTerminate();
+}
+
+pub fn close() void {
+    _ = c.glfwSetWindowShouldClose(glfw_window, c.GLFW_TRUE);
 }
 
 pub fn should_render() bool {

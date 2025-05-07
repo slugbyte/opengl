@@ -6,6 +6,14 @@ tryin to learn me some opengl
 
 
 ## TODO
+* stack
+  * padding
+  * item spacing
+  * compute grid widths (with item spacing accounted for)
+  * border (top left bottom right)?
+  * v align (right left center)
+  * v align (top bottom center)
+
 * fix the sketchy way slider value/handle\_position is computed
 * hbox and vbox
   * .get\_cursor() ?

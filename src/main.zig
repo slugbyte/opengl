@@ -4,7 +4,6 @@
 
 const std = @import("std");
 const c = @import("./c.zig");
-const ctx = @import("./context.zig");
 const debug = @import("./debug.zig");
 const config = @import("config");
 const window = @import("./Window.zig");
@@ -19,7 +18,8 @@ const Vec = @import("./Vec.zig");
 const Size = @import("./Size.zig");
 const Rect = @import("./Rect.zig");
 const gui = @import("gui.zig");
-const image_data = @embedFile("./asset/bing.jpg");
+
+const IMAGE_BING = @embedFile("./asset/bing.jpg");
 
 var button_state: i32 = 0;
 
@@ -42,17 +42,14 @@ pub fn main() !void {
     try gl.init(allocator);
     defer gl.deinit();
 
-    try ctx.init();
-
     var dot_list = std.ArrayList(Dot).init(allocator);
     for (1..100) |_| {
         try dot_list.append(Dot.init());
     }
-    std.debug.print("RRR\n", .{});
     const color_bg = Color.gray(25, 255);
 
     // image_texture
-    var image_texure = Texture.init_with_image_data(image_data, .T4);
+    var image_texure = Texture.init_with_image_data(IMAGE_BING, .T4);
     defer image_texure.deinit();
 
     // setup framebuffer and texture for drawing background
@@ -80,7 +77,7 @@ pub fn main() !void {
         window.frame_begin();
 
         // c.glfwPollEvents();
-        ctx.update_begin();
+        // ctx.update_begin();
 
         gl.clear(Color.Black);
         // TODO: what happens if a new texture gets bound to the texture.unit before the
@@ -134,51 +131,38 @@ pub fn main() !void {
         if (stack_y != stack_y_target) {
             stack_y = gui.lerp(stack_y, stack_y_target, 0.1);
         }
-        var stack = try gui.stack_h(@src(), Vec.init(stack_x, stack_y), Size{ .width = 500, .height = 500 }, Color.gray(250, 250));
-        const button_size = Size.init(stack.percent_width(0.25), 50);
-        const posA = stack.next(button_size);
-        const posB = stack.next(button_size);
-        const posC = stack.next(button_size);
-        const posD = stack.next(button_size);
+        var stack_outer = try gui.stack_h(@src(), Vec.init(stack_x, stack_y), Size{ .width = 500, .height = 50 }, Color.Red);
+        const stack_inner_size = Size{
+            .width = stack_outer.size.width - 20,
+            .height = stack_outer.size.height - 20,
+        };
+        var stack_inner = try gui.stack_h(@src(), Vec.init(stack_x + 10, stack_y + 10), stack_inner_size, Color.Blue);
+        stack_inner.cursor.padding = 5;
 
-        try inc_button(@src(), &stack_x_target, -150, posA, button_size);
-        try inc_button(@src(), &stack_y_target, 150, posB, button_size);
-        try inc_button(@src(), &stack_y_target, -150, posC, button_size);
-        try inc_button(@src(), &stack_x_target, 150, posD, button_size);
+        var button_size = Size.init(stack_outer.percent_width(0.25), stack_inner.size.height);
+        button_size.width -= (stack_inner.cursor.padding * 2);
+        try inc_button(@src(), &stack_x_target, -150, stack_inner.next(button_size), button_size);
+        try inc_button(@src(), &stack_y_target, 150, stack_inner.next(button_size), button_size);
+        try inc_button(@src(), &stack_y_target, -150, stack_inner.next(button_size), button_size);
+        try inc_button(@src(), &stack_x_target, 150, stack_inner.next(button_size), button_size);
 
-        stack.end();
+        stack_outer.end();
 
         // quit buttn
-        // if (try gui.button_rect(@src(), Rect.init(ctx.window_width - 55, 5, 50, 50), .{})) {
-        //     _ = c.glfwSetWindowShouldClose(window, c.GLFW_TRUE);
-        // }
+        if (try gui.button_rect(@src(), Rect.init(window.size.width - 55, 5, 50, 50), .{})) {
+            window.close();
+        }
 
         // write png button
-        // if (try gui.button_rect(@src(), Rect.init(ctx.window_width - 55, 60, 50, 50), .{})) {
-        //     try bg_texture.write_png(allocator, config.debug_png_out);
-        //     debug.clear();
-        //     std.debug.print("wrote debug_png_out to {s}\n", .{config.debug_png_out});
-        // }
-        //
+        if (try gui.button_rect(@src(), Rect.init(window.size.width - 55, 60, 50, 50), .{})) {
+            try bg_texture.write_png(allocator, config.debug_png_out);
+            debug.clear();
+            std.debug.print("wrote debug_png_out to {s}\n", .{config.debug_png_out});
+        }
         slider_value = try gui.slider(@src(), Rect.init(10, (window.size.height / 2) - 100, 50, 200), slider_value);
 
-        // var cursor = gui.Cursor.init(800, 10);
-        // cursor.switch_direction();
-        // if (try gui.button(@src(), &cursor, Size.init(100, 50), .{ .color_default = Color.init(200, 100, 200, 255) })) {
-        //     std.debug.print("boom1\n", .{});
-        // }
-        // if (try gui.button(@src(), &cursor, Size.init(150, 50), .{})) {
-        //     std.debug.print("boom2\n", .{});
-        // }
-        // if (try gui.button(@src(), &cursor, Size.init(50, 50), .{})) {
-        //     std.debug.print("boom3\n", .{});
-        // }
         gui.end();
 
-        ctx.update_end();
-        // ctx.debug_hud_print();
-        // std.debug.print("cursor: {any}\n", .{cursor});
-        // c.glfwSwapBuffers(window);
         window.frame_end();
     }
 

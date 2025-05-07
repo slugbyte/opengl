@@ -141,24 +141,27 @@ pub const Stack = struct {
     // };
 };
 
-pub fn stack_h(src: SourceLocation, pos: Vec, size: Size, color: Color) !Stack {
+pub fn stack_h(src: SourceLocation, pos: Vec, size: Size, color: ?Color) !Stack {
     _ = src;
     const result = Stack.init(pos, size, .Horizontal);
     const rect = Rect.init_point_size(result.pos, result.size);
     gl.scisor_begin(rect);
-    try gl.shader_program_set(.{ .Default = {} });
-    try gl.draw_rect(rect, color);
+    if (color) |c| {
+        try gl.shader_program_set(.{ .Default = {} });
+        try gl.draw_rect(rect, c);
+    }
     return result;
 }
 
-pub fn stack_v(src: SourceLocation, pos: Vec, size: Size, color: Color) !Stack {
+pub fn stack_v(src: SourceLocation, pos: Vec, size: Size, color: ?Color) !Stack {
     _ = src;
     const result = Stack.init(pos, size, .Vertical);
     const rect = Rect.init_point_size(result.pos, result.size);
     gl.scisor_begin(rect);
-    try gl.shader_program_set(.{ .Default = {} });
-    try gl.draw_rect(rect, color);
-    gl.scisor_end();
+    if (color) |c| {
+        try gl.shader_program_set(.{ .Default = {} });
+        try gl.draw_rect(rect, c);
+    }
     return result;
 }
 

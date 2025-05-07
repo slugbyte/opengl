@@ -1,5 +1,5 @@
 const std = @import("std");
-const ctx = @import("./context.zig");
+const window = @import("./Window.zig");
 const Vec = @import("./Vec.zig");
 const Size = @import("./Size.zig");
 
@@ -35,7 +35,7 @@ pub fn contians(self: Rect, point: Vec) bool {
 }
 
 pub fn to_opengl_window_cords(self: Rect) Rect {
-    const y: f32 = (ctx.window_height - 1) - self.y - self.height + 1;
+    const y: f32 = (window.size.height - 1) - self.y - self.height + 1;
     return Rect{
         .y = y,
         .x = self.x,

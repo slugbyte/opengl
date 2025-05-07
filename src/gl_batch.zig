@@ -1,5 +1,4 @@
 const std = @import("std");
-const ctx = @import("./context.zig");
 const c = @import("./c.zig");
 
 const Shader = @import("./Shader.zig");
