@@ -1,6 +1,6 @@
 const std = @import("std");
 const c = @import("./c.zig");
-const ctx = @import("./context.zig");
+const window = @import("Window.zig");
 const Shader = @import("./Shader.zig");
 const Color = @import("./Color.zig");
 const Rect = @import("./Rect.zig");
@@ -64,15 +64,15 @@ pub fn shader_program_set(program: ShaderProgram) !void {
     switch (program) {
         .Default => {
             shader_default.use();
-            try shader_default.u_window_set(ctx.window_width, ctx.window_height);
+            try shader_default.u_window_set(window.size.width, window.size.height);
         },
         .Circle => {
             shader_circle.use();
-            try shader_circle.u_window_set(ctx.window_width, ctx.window_height);
+            try shader_circle.u_window_set(window.size.width, window.size.height);
         },
         .Texture => |texture| {
             shader_texture.use();
-            try shader_texture.u_window_set(ctx.window_width, ctx.window_height);
+            try shader_texture.u_window_set(window.size.width, window.size.height);
             try shader_texture.u_texture_set(texture);
         },
     }
@@ -86,7 +86,7 @@ pub fn clear(color: Color) void {
 pub fn scisor_begin(rect: Rect) void {
     c.glEnable(c.GL_SCISSOR_TEST);
     // flip y axis for opengl cords
-    const y: f32 = (ctx.window_height - 1) - rect.y - rect.height + 1;
+    const y: f32 = (window.size.height - 1) - rect.y - rect.height + 1;
     c.glScissor(@intFromFloat(rect.x), @intFromFloat(y), @intFromFloat(rect.width), @intFromFloat(rect.height));
 }
 

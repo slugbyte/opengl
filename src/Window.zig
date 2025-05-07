@@ -9,12 +9,12 @@ pub const Error = error{
     GLFWCreateWindowFailed,
 };
 
-pub const Window = @This();
-
-glfw_window: ?*c.GLFWwindow,
-size: Size,
-has_resized: bool = false,
-mouse: Mouse = Mouse{},
+pub var glfw_window: ?*c.GLFWwindow = undefined;
+pub var size: Size = undefined;
+pub var has_resized: bool = false;
+pub var mouse: Mouse = Mouse{};
+pub var time_delta: f32 = 0;
+pub var time_last: f32 = 0;
 
 pub const WindowOptions = struct {
     size: Size = Size.init(800, 600),
@@ -34,7 +34,7 @@ pub const MouseButtonAction = enum(c_int) {
     Release = c.GLFW_RELEASE,
 };
 
-pub fn init(title: []const u8, opt: WindowOptions) !Window {
+pub fn init(title: []const u8, opt: WindowOptions) !void {
     if (c.glfwInit() == c.GLFW_FALSE) {
         return Error.GLFWInitFailed;
     }
@@ -42,75 +42,70 @@ pub fn init(title: []const u8, opt: WindowOptions) !Window {
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, opt.opengl_version_minor);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
 
-    const window = c.glfwCreateWindow(@intFromFloat(opt.size.width), @intFromFloat(opt.size.height), @ptrCast(title.ptr), null, null);
-    if (window == null) {
+    glfw_window = c.glfwCreateWindow(@intFromFloat(opt.size.width), @intFromFloat(opt.size.height), @ptrCast(title.ptr), null, null);
+    if (glfw_window == null) {
         return Error.GLFWCreateWindowFailed;
     }
-
-    c.glfwMakeContextCurrent(window);
+    size = opt.size;
+    c.glfwMakeContextCurrent(glfw_window);
     c.glfwSwapInterval(if (opt.vsync) 1 else 0);
-    var result = Window{
-        .size = opt.size,
-        .glfw_window = window,
-    };
 
-    result.on_resize();
+    _ = c.glfwSetFramebufferSizeCallback(glfw_window, glfw_callback_framebuffer_resize);
+    _ = c.glfwSetCursorPosCallback(glfw_window, glfw_callback_mouse_position);
+    _ = c.glfwSetMouseButtonCallback(glfw_window, glfw_callback_mouse_button);
 
-    return result;
+    // TODO: ?? make stb wrapper :)
+    c.stbi_set_flip_vertically_on_load(1);
 }
 
-fn glfw_callback_init(self: *Window) void {
-    const callback = struct {
-        pub fn framebuffer_resize(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
-            self.has_resized = true;
-            self.size = Size{
-                .width = @floatFromInt(width),
-                .height = @floatFromInt(height),
-            };
-        }
-        pub fn mouse_position(_: ?*c.GLFWwindow, x: f64, y: f64) callconv(.C) void {
-            self.mouse.pos = Vec{
-                .x = @floatCast(x),
-                .y = @floatCast(y),
-            };
-        }
-        pub fn mouse_button(_: ?*c.GLFWwindow, button: c_int, action: c_int, _: c_int) callconv(.C) void {
-            if (button == c.GLFW_MOUSE_BUTTON_LEFT) {
-                if (action == c.GLFW_PRESS) {
-                    self.mouse.left_pressed = true;
-                    self.mouse.left_just_pressed = true;
-                }
-
-                if (action == c.GLFW_RELEASE) {
-                    self.mouse.left_pressed = false;
-                    self.mouse.left_just_released = true;
-                }
-            }
-        }
-    };
-    c.glfwSetFramebufferSizeCallback(self.glfw_window, callback.framebuffer_resize);
-    c.glfwSetCursorPosCallback(self.glfw_window, callback.mouse_position);
-    c.glfwSetMouseButtonCallback(self.glfw_window, callback.mouse_button);
-}
-
-pub fn deinit(self: Window) void {
-    c.glfwDestroyWindow(self.glfw_window);
+pub fn deinit() void {
+    c.glfwDestroyWindow(glfw_window);
     c.glfwTerminate();
 }
 
-pub fn poll_events(self: Window) void {
-    _ = self;
+pub fn should_render() bool {
+    return c.glfwWindowShouldClose(glfw_window) != c.GLFW_TRUE;
+}
+
+pub fn frame_begin() void {
+    const time_current: f32 = @as(f32, @floatCast(c.glfwGetTime())) * 1000.0;
+    time_delta = time_current - time_last;
+    time_last = time_current;
     return c.glfwPollEvents();
 }
 
-pub fn should_render(self: Window) bool {
-    return c.glfwWindowShouldClose(self.glfw_window) != c.GLFW_TRUE;
+pub fn frame_end() void {
+    has_resized = false;
+    mouse.update_end();
+    c.glfwSwapBuffers(glfw_window);
 }
 
-pub fn swap_buffers(self: Window) void {
-    c.glfwSwapBuffers(self.glfw_window);
+fn glfw_callback_framebuffer_resize(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
+    c.glViewport(0, 0, width, height);
+    has_resized = true;
+    size = Size{
+        .width = @floatFromInt(width),
+        .height = @floatFromInt(height),
+    };
 }
 
-pub fn end_of_frame(self: *Window) void {
-    self.has_resized = false;
+fn glfw_callback_mouse_position(_: ?*c.GLFWwindow, x: f64, y: f64) callconv(.C) void {
+    mouse.pos = Vec{
+        .x = @floatCast(x),
+        .y = @floatCast(y),
+    };
+}
+
+fn glfw_callback_mouse_button(_: ?*c.GLFWwindow, button: c_int, action: c_int, _: c_int) callconv(.C) void {
+    if (button == c.GLFW_MOUSE_BUTTON_LEFT) {
+        if (action == c.GLFW_PRESS) {
+            mouse.left_pressed = true;
+            mouse.left_just_pressed = true;
+        }
+
+        if (action == c.GLFW_RELEASE) {
+            mouse.left_pressed = false;
+            mouse.left_just_released = true;
+        }
+    }
 }

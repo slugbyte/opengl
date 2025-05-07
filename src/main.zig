@@ -7,6 +7,7 @@ const c = @import("./c.zig");
 const ctx = @import("./context.zig");
 const debug = @import("./debug.zig");
 const config = @import("config");
+const window = @import("./Window.zig");
 
 const gl = @import("./gl.zig");
 const Shader = @import("./Shader.zig");
@@ -25,7 +26,7 @@ var button_state: i32 = 0;
 fn inc_button(src: std.builtin.SourceLocation, value: *f32, inc: f32, pos: Vec, size: Size) !void {
     if (try gui.button_rect(src, Rect.init_point_size(pos, size), .{ .color_default = Color.Green })) {
         value.* += inc;
-        value.* = std.math.clamp(value.*, 0, ctx.window_width);
+        value.* = std.math.clamp(value.*, 0, window.size.width);
     }
 }
 
@@ -34,45 +35,28 @@ pub fn main() !void {
 
     var debug_allocator = std.heap.DebugAllocator(.{}){};
     const allocator = debug_allocator.allocator();
-    if (c.glfwInit() == c.GLFW_FALSE) {
-        @panic("failed to init glfw");
-    }
-    defer c.glfwTerminate();
-    c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 3);
-    c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
-    c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
 
-    const window = c.glfwCreateWindow(800, 600, "DEMO", null, null);
-    if (window == null) {
-        @panic("glfw failed to create window");
-    }
+    try window.init("DEMO", .{});
+    defer window.deinit();
 
-    c.glfwMakeContextCurrent(window);
-    c.glfwSwapInterval(1);
-
-    c.stbi_set_flip_vertically_on_load(1);
-
-    try ctx.init();
     try gl.init(allocator);
     defer gl.deinit();
 
-    ctx.glfw_callback_framebuffer_resize(window, 800, 600);
-    _ = c.glfwSetFramebufferSizeCallback(window, &ctx.glfw_callback_framebuffer_resize);
-    _ = c.glfwSetCursorPosCallback(window, &ctx.glfw_callback_cursor_position);
-    _ = c.glfwSetMouseButtonCallback(window, &ctx.glfw_callback_mouse_button);
+    try ctx.init();
 
     var dot_list = std.ArrayList(Dot).init(allocator);
     for (1..100) |_| {
         try dot_list.append(Dot.init());
     }
+    std.debug.print("RRR\n", .{});
     const color_bg = Color.gray(25, 255);
 
     // image_texture
-    var image = Texture.init_with_image_data(image_data, .T4);
-    defer image.deinit();
+    var image_texure = Texture.init_with_image_data(image_data, .T4);
+    defer image_texure.deinit();
 
     // setup framebuffer and texture for drawing background
-    var bg_texture = Texture.init(ctx.window_width, ctx.window_height, .T3);
+    var bg_texture = Texture.init(window.size.width, window.size.height, .T3);
     defer bg_texture.deinit();
     var bg_framebuffer = try Framebuffer.init();
     bg_framebuffer.bind();
@@ -91,18 +75,21 @@ pub fn main() !void {
     var stack_y_target: f32 = 0;
     var stack_x: f32 = stack_x_target;
     var stack_y: f32 = stack_y_target;
-    while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
-        c.glfwPollEvents();
+    // while (c.glfwWindowShouldClose(window) != c.GLFW_TRUE) {
+    while (window.should_render()) {
+        window.frame_begin();
+
+        // c.glfwPollEvents();
         ctx.update_begin();
 
-        gl.clear(color_bg);
+        gl.clear(Color.Black);
         // TODO: what happens if a new texture gets bound to the texture.unit before the
         // framebuffer is rebound?
 
         // render background to a texture
         bg_framebuffer.bind();
-        if (ctx.window_has_resized) {
-            try bg_texture.reset(ctx.window_width, ctx.window_height);
+        if (window.has_resized) {
+            try bg_texture.reset(window.size.width, window.size.height);
             gl.clear(color_bg);
         }
 
@@ -112,7 +99,7 @@ pub fn main() !void {
             try dot_item.render();
         }
         try gl.batch.flush();
-        //
+
         try gl.shader_program_set(.{ .Default = {} });
         for (dot_list.items) |*dot_item| {
             dot_item.update();
@@ -123,23 +110,23 @@ pub fn main() !void {
 
         bg_texture.bind();
         try gl.shader_program_set(.{ .Texture = bg_texture });
-        try gl.batch.draw_rect(0, 0, ctx.window_width, ctx.window_height, Color{});
+        try gl.batch.draw_rect(0, 0, window.size.width, window.size.height, Color{});
         try gl.batch.flush();
 
         // image
-        try gl.shader_program_set(.{ .Texture = image });
-        try gl.draw_rect(Rect.init(600, 700, image.width, image.height), Color{});
+        try gl.shader_program_set(.{ .Texture = image_texure });
+        try gl.draw_rect(Rect.init(600, 700, image_texure.width, image_texure.height), Color{});
 
         // pallet
-        const pallet_x = @divFloor(ctx.window_width, 2) - 125;
-        const pallet_y = @divFloor(ctx.window_height, 6) - 125;
+        const pallet_x = @divFloor(window.size.width, 2) - 125;
+        const pallet_y = @divFloor(window.size.height, 6) - 125;
         try gl.shader_program_set(.{ .Default = {} });
         try gl.batch.draw_rect(pallet_x, pallet_y, 250, 250, Color.Black);
         try gl.batch.draw_rect_color_interploate(pallet_x + 2, pallet_y + 2, 246, 246, Color.White, Color{ .r = 255 }, Color{}, Color.Black);
         try gl.batch.draw_rect(pallet_x, pallet_y + 255, 250, 50, Color{});
         try gl.batch.flush();
 
-        gui.begin(ctx.mouse);
+        gui.begin(window.mouse);
 
         if (stack_x != stack_x_target) {
             stack_x = gui.lerp(stack_x, stack_x_target, 0.1);
@@ -173,7 +160,7 @@ pub fn main() !void {
         //     std.debug.print("wrote debug_png_out to {s}\n", .{config.debug_png_out});
         // }
         //
-        slider_value = try gui.slider(@src(), Rect.init(10, (ctx.window_height / 2) - 100, 50, 200), slider_value);
+        slider_value = try gui.slider(@src(), Rect.init(10, (window.size.height / 2) - 100, 50, 200), slider_value);
 
         // var cursor = gui.Cursor.init(800, 10);
         // cursor.switch_direction();
@@ -191,7 +178,8 @@ pub fn main() !void {
         ctx.update_end();
         // ctx.debug_hud_print();
         // std.debug.print("cursor: {any}\n", .{cursor});
-        c.glfwSwapBuffers(window);
+        // c.glfwSwapBuffers(window);
+        window.frame_end();
     }
 
     debug.clear();

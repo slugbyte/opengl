@@ -1,5 +1,6 @@
 const std = @import("std");
 const ctx = @import("./context.zig");
+const window = @import("./Window.zig");
 const gl = @import("./gl.zig");
 const Color = @import("./Color.zig");
 
@@ -24,8 +25,8 @@ pub fn init() Dot {
     const size = ctx.random(2, 100);
     const x_flip: f32 = if (ctx.rand.boolean()) -1 else 1;
     return Dot{
-        .x = ctx.random(0, ctx.window_width),
-        .y = ctx.random(-100, ctx.window_height),
+        .x = ctx.random(0, window.size.width),
+        .y = ctx.random(-100, window.size.height),
         .size = size,
         .x_speed = ctx.random(2, 6) * x_flip,
         .y_speed = ctx.random(2, 6),
@@ -35,13 +36,13 @@ pub fn init() Dot {
 }
 
 pub fn update(self: *Dot) void {
-    if (ctx.window_has_resized) {
-        self.x = ctx.random(-100, ctx.window_width + 100);
-        self.y = ctx.random(-100, ctx.window_height + 100);
+    if (window.has_resized) {
+        self.x = ctx.random(-100, window.size.width + 100);
+        self.y = ctx.random(-100, window.size.height + 100);
     }
     if (ctx.rand.float(f32) < 0.01) {
-        self.x = ctx.random(-100, ctx.window_width + 100);
-        self.y = ctx.random(-100, ctx.window_height + 100);
+        self.x = ctx.random(-100, window.size.width + 100);
+        self.y = ctx.random(-100, window.size.height + 100);
         self.color = Color.gray(ctx.rand.int(u8), 200);
         self.size = ctx.random(2, 50);
     }
