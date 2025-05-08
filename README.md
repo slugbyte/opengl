@@ -31,14 +31,18 @@ tryin to learn me some opengl
     * // color-b
     * // color-c
     * // color-d
+* inputs
+  * button
+  * pulse (instant button)
+  * checkbox
+  * slider
+  * text
+  * textarea?
+  * text-arrow-key-keyboard
 
-* fix the sketchy way slider value/handle\_position is computed
-* hbox and vbox
-  * .get\_cursor() ?
 * render fonts
 * worker thread pool for async tasks
   * file io
-
 * Box? a nice way to render a Rect with a Theme?
   * width 
   * height
