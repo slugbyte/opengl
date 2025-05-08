@@ -6,7 +6,10 @@ const Size = @import("./Size.zig");
 const Mouse = @import("./Mouse.zig");
 const Color = @import("./Color.zig");
 const IMButton = @This();
+const id_src = @import("id.zig").src;
 const SourceLocation = std.builtin.SourceLocation;
+
+const Box = @import("./Box.zig");
 
 pub const fnv = std.hash.Fnv1a_32;
 
@@ -32,22 +35,6 @@ inline fn id_is_active(id: u32) bool {
     return id == id_active;
 }
 
-// IdeaOne x y w h
-// IdeaTwo pos size
-// IdeaThree cursor size
-
-pub fn id_src(src: std.builtin.SourceLocation, item_index: ?usize) u32 {
-    const index = item_index orelse 0;
-    var hash = fnv.init();
-    hash.update(std.mem.asBytes(&src.file.ptr));
-    hash.update(std.mem.asBytes(&src.module.ptr));
-    hash.update(std.mem.asBytes(&src.line));
-    hash.update(std.mem.asBytes(&src.column));
-    hash.update(std.mem.asBytes(&src.column));
-    hash.update(std.mem.asBytes(&index));
-    return hash.final();
-}
-
 pub fn lerp(start: f32, stop: f32, t: f32) f32 {
     return start + (stop - start) * t;
 }
@@ -57,113 +44,7 @@ pub const CursorDirection = enum {
     Vertical,
 };
 
-pub const BoxOptions = struct {
-    rect: Rect,
-    color: ?Color = null,
-    padding: f32 = 0,
-    spacing: f32 = 0,
-    border_size: ?f32 = null,
-    border_color: Color = Color.Black,
-    allow_overflow: bool = true,
-    item_index: ?usize = null,
-    cursor_direction: CursorDirection = .Horizontal,
-};
-
-/// NOTE: borders are on outside because if you toggle them it wont effect internal layout
-pub const Box = struct {
-    // can this use Rect funcs if has pos and size? (like an interfaces)
-    // is it better to have a rect
-    id: u32,
-    pos: Vec,
-    size: Size,
-    color: ?Color,
-    padding: f32,
-    spacing: f32,
-    border_size: ?f32,
-    border_color: Color,
-    content_size: Size,
-    content_pos: Vec,
-    allow_overflow: bool,
-    cursor: Vec,
-    cursor_direction: CursorDirection,
-    // cursor: Cursor,
-
-    pub fn init(src: SourceLocation, opt: BoxOptions) Box {
-        const content_pos = opt.rect.pos.add_value(opt.padding);
-        return Box{
-            .id = id_src(src, opt.item_index),
-            .pos = opt.rect.pos,
-            .size = opt.rect.size,
-            .color = opt.color,
-            .padding = opt.padding,
-            .spacing = opt.spacing,
-            .border_size = opt.border_size,
-            .border_color = opt.border_color,
-            .content_pos = content_pos,
-            .content_size = opt.rect.size.add_value(-2 * opt.padding),
-            .allow_overflow = opt.allow_overflow,
-            .cursor = content_pos,
-            .cursor_direction = opt.cursor_direction,
-        };
-    }
-
-    pub fn render(self: Box) !void {
-        try gl.shader_program_set(.{ .Default = {} });
-        if (self.border_size) |border_size| {
-            if (border_size > 0) {
-                const pos = self.pos.add_value(border_size * -1);
-                const size = self.size.add_value(border_size * 2);
-                try gl.batch.draw_rect(pos.x, pos.y, size.width, size.height, self.border_color);
-                // TODO: fix this so that border works when color is Transpaernt
-            }
-        }
-
-        if (self.color) |color| {
-            try gl.batch.draw_rect(self.pos.x, self.pos.y, self.size.width, self.size.height, color);
-        }
-
-        if (!self.allow_overflow) {
-            gl.scisor_begin(self.pos, self.size);
-        }
-
-        try gl.batch.flush();
-    }
-
-    pub fn next(self: *Box, size: Size) Rect {
-        const result_pos = self.cursor;
-        switch (self.cursor_direction) {
-            .Horizontal => {
-                self.cursor = Vec{
-                    .x = self.cursor.x + size.width + self.spacing,
-                    .y = self.cursor.y,
-                };
-            },
-            .Vertical => {
-                self.cursor = Vec{
-                    .y = self.cursor.y + size.height + self.spacing,
-                    .x = self.cursor.x,
-                };
-            },
-        }
-        return Rect{
-            .pos = result_pos,
-            .size = size,
-        };
-    }
-
-    pub fn next_fill(self: *Box, length: f32) Rect {
-        return switch (self.cursor_direction) {
-            .Horizontal => self.next(Size{ .width = length, .height = self.content_size.height }),
-            .Vertical => self.next(Size{ .height = length, .width = self.content_size.width }),
-        };
-    }
-
-    pub fn end(_: Box) void {
-        gl.scisor_end();
-    }
-};
-
-pub fn box(src: SourceLocation, opt: BoxOptions) !Box {
+pub fn box(src: SourceLocation, opt: Box.BoxOptions) !Box {
     var b = Box.init(src, opt);
     try b.render();
     return b;
@@ -176,7 +57,7 @@ const ButtonOptions = struct {
     color_active: Color = Color.gray(250, 255),
 };
 
-pub fn button_rect(src: std.builtin.SourceLocation, opt: BoxOptions) !bool {
+pub fn button_rect(src: std.builtin.SourceLocation, opt: Box.BoxOptions) !bool {
     const id = id_src(src, null);
     const rect = opt.rect;
 

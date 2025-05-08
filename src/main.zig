@@ -42,50 +42,31 @@ pub fn main() !void {
 
         // const menu = try gui.box(Vec.init(0, 0), Size.init(window.size.width * 0.25, window.size.height), .{
         var menu = try gui.box(@src(), .{
-            .rect = Rect.from(0, 0, window.size.width, 100),
+            .rect = Rect.from(0, 0, window.size.width / 2, window.size.height / 2),
             .color = Color.Blue,
             .padding = 10,
             .spacing = 10,
-            .cursor_direction = .Horizontal,
+            .cursor_direction = .Vertical,
+            // .cursor_align = .Center,
             .allow_overflow = false,
         });
 
         _ = try gui.box(@src(), .{
-            .rect = menu.next_fill(500),
-            .color = Color.Red,
+            .rect = menu.next(Size.init(menu.content_size.width, menu.content_size.height / 2 - menu.spacing / 2)),
+            .color = Color.White,
         });
 
         _ = try gui.box(@src(), .{
-            .rect = menu.next_fill(500),
-            .color = Color.Orange,
-        });
-
-        var green = try gui.box(@src(), .{
-            .rect = menu.next_fill(150),
-            .color = Color.Green,
-            .spacing = 10,
-            .padding = 10,
+            .rect = menu.next(Size.init(menu.content_size.width, menu.content_size.height / 2 - menu.spacing / 2)),
+            .color = Color.White,
         });
 
         _ = try gui.box(@src(), .{
-            .rect = green.next_fill(50),
+            .rect = menu.center_rect(Size.init(300, 300)),
             .color = Color.Black,
-            .spacing = 10,
-            .padding = 10,
         });
-
-        if (try gui.button_rect(@src(), .{
-            .rect = green.next_fill(50),
-            .color = Color.Red,
-        })) {
-            std.debug.print("siik\n", .{});
-        }
 
         menu.end();
-
-        // menu.end();
-
-        // stack.end();
 
         gui.end();
         window.frame_end();

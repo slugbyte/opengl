@@ -11,6 +11,13 @@ pub fn init(x: f32, y: f32) Vec {
     };
 }
 
+pub fn copy(self: Vec) Vec {
+    return Vec{
+        .x = self.x,
+        .y = self.y,
+    };
+}
+
 pub fn add(self: Vec, vec: Vec) Vec {
     return Vec{
         .x = self.x + vec.x,
