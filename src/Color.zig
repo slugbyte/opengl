@@ -41,11 +41,14 @@ pub const White = Color{
 
 pub const Black = Color{};
 
-pub const Green = Color.init_hexcode("#78FF78", 255);
-pub const Blue = Color.init_hexcode("#7788AA", 255);
-pub const Red = Color.init(255, 0, 0, 255);
-pub const Yellow = Color.init(255, 255, 0, 255);
-pub const Pink = Color.init(255, 0, 255, 255);
+pub const Clear = Color.init(0, 0, 0, 0);
+
+pub const Red = Color.init_hexcode("#f21f38", 255);
+pub const Green = Color.init_hexcode("#06e227", 255);
+pub const Blue = Color.init_hexcode("#1183fc", 255);
+pub const Yellow = Color.init_hexcode("#dae238", 255);
+pub const Orange = Color.init_hexcode("#e28838", 255);
+pub const Pink = Color.init_hexcode("#fc377c", 255);
 
 pub fn gray(value: u8, alpha: u8) Color {
     return Color{

@@ -18,6 +18,13 @@ pub fn add(self: Vec, vec: Vec) Vec {
     };
 }
 
+pub fn add_value(self: Vec, value: f32) Vec {
+    return Vec{
+        .x = self.x + value,
+        .y = self.y + value,
+    };
+}
+
 pub fn add_x(self: Vec, x: f32) Vec {
     return Vec{
         .x = self.x + x,

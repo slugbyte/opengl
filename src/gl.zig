@@ -3,6 +3,8 @@ const c = @import("./c.zig");
 const window = @import("Window.zig");
 const Shader = @import("./Shader.zig");
 const Color = @import("./Color.zig");
+const Vec = @import("./Vec.zig");
+const Size = @import("Size.zig");
 const Rect = @import("./Rect.zig");
 const Mesh = @import("./Mesh.zig");
 const Texture = @import("./Texture.zig");
@@ -83,11 +85,18 @@ pub fn clear(color: Color) void {
     c.glClear(c.GL_COLOR_BUFFER_BIT);
 }
 
-pub fn scisor_begin(rect: Rect) void {
+pub fn scisor_begin_rect(rect: Rect) void {
     c.glEnable(c.GL_SCISSOR_TEST);
     // flip y axis for opengl cords
     const y: f32 = (window.size.height - 1) - rect.y - rect.height + 1;
     c.glScissor(@intFromFloat(rect.x), @intFromFloat(y), @intFromFloat(rect.width), @intFromFloat(rect.height));
+}
+
+pub fn scisor_begin(pos: Vec, size: Size) void {
+    c.glEnable(c.GL_SCISSOR_TEST);
+    // flip y axis for opengl cords
+    const y: f32 = (window.size.height - 1) - pos.y - size.height + 1;
+    c.glScissor(@intFromFloat(pos.x), @intFromFloat(y), @intFromFloat(size.width), @intFromFloat(size.height));
 }
 
 pub fn scisor_end() void {
@@ -110,10 +119,10 @@ pub fn eyedroper(x: f32, y: f32) Color {
 }
 
 pub fn draw_rect(rect: Rect, color: Color) !void {
-    const x0: f32 = rect.x;
-    const y0: f32 = rect.y;
-    const x1: f32 = rect.x + rect.width;
-    const y1: f32 = rect.y + rect.height;
+    const x0: f32 = rect.pos.x;
+    const y0: f32 = rect.pos.y;
+    const x1: f32 = rect.pos.x + rect.size.width;
+    const y1: f32 = rect.pos.y + rect.size.height;
 
     const r, const g, const b, const a = color.gl_vertex();
     // x y r g b a u v

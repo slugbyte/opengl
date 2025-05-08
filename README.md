@@ -4,15 +4,33 @@ tryin to learn me some opengl
 
 
 
-
 ## TODO
-* stack
-  * padding
-  * item spacing
-  * compute grid widths (with item spacing accounted for)
-  * border (top left bottom right)?
-  * v align (right left center)
-  * v align (top bottom center)
+* math
+  * 4x4 matrix 
+    * linear
+    * orthographic
+    * scale
+    * rotate
+    * skew
+    * translate
+* box
+  * more flex
+  * more responsive
+  * add things based on grids?
+  * add things based on %
+  * debug mode (random borders, random fills)
+  * alignment (top, bottom, left, right)
+  * wrap?
+  * style 
+    * color-hot
+    * color-active
+    * color-disable
+    * color-error
+    * color-border
+    * // color-a
+    * // color-b
+    * // color-c
+    * // color-d
 
 * fix the sketchy way slider value/handle\_position is computed
 * hbox and vbox

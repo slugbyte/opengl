@@ -32,137 +32,141 @@ inline fn id_is_active(id: u32) bool {
     return id == id_active;
 }
 
-pub fn src_id(src: std.builtin.SourceLocation, item: ?usize) u32 {
-    const _item = item orelse 0;
+// IdeaOne x y w h
+// IdeaTwo pos size
+// IdeaThree cursor size
+
+pub fn id_src(src: std.builtin.SourceLocation, item_index: ?usize) u32 {
+    const index = item_index orelse 0;
     var hash = fnv.init();
     hash.update(std.mem.asBytes(&src.file.ptr));
     hash.update(std.mem.asBytes(&src.module.ptr));
     hash.update(std.mem.asBytes(&src.line));
     hash.update(std.mem.asBytes(&src.column));
     hash.update(std.mem.asBytes(&src.column));
-    hash.update(std.mem.asBytes(&_item));
+    hash.update(std.mem.asBytes(&index));
     return hash.final();
 }
 
-pub const Cursor = struct {
-    position: Vec,
-    padding: f32 = 0.0,
-    max_size: ?Size = null,
-    direction: Direction = .Horizontal,
+pub fn lerp(start: f32, stop: f32, t: f32) f32 {
+    return start + (stop - start) * t;
+}
 
-    pub const Direction = enum {
-        Horizontal,
-        Vertical,
-    };
+pub const CursorDirection = enum {
+    Horizontal,
+    Vertical,
+};
 
-    pub fn init(x: f32, y: f32) Cursor {
-        return Cursor{
-            .position = Vec.init(x, y),
+pub const BoxOptions = struct {
+    rect: Rect,
+    color: ?Color = null,
+    padding: f32 = 0,
+    spacing: f32 = 0,
+    border_size: ?f32 = null,
+    border_color: Color = Color.Black,
+    allow_overflow: bool = true,
+    item_index: ?usize = null,
+    cursor_direction: CursorDirection = .Horizontal,
+};
+
+/// NOTE: borders are on outside because if you toggle them it wont effect internal layout
+pub const Box = struct {
+    // can this use Rect funcs if has pos and size? (like an interfaces)
+    // is it better to have a rect
+    id: u32,
+    pos: Vec,
+    size: Size,
+    color: ?Color,
+    padding: f32,
+    spacing: f32,
+    border_size: ?f32,
+    border_color: Color,
+    content_size: Size,
+    content_pos: Vec,
+    allow_overflow: bool,
+    cursor: Vec,
+    cursor_direction: CursorDirection,
+    // cursor: Cursor,
+
+    pub fn init(src: SourceLocation, opt: BoxOptions) Box {
+        const content_pos = opt.rect.pos.add_value(opt.padding);
+        return Box{
+            .id = id_src(src, opt.item_index),
+            .pos = opt.rect.pos,
+            .size = opt.rect.size,
+            .color = opt.color,
+            .padding = opt.padding,
+            .spacing = opt.spacing,
+            .border_size = opt.border_size,
+            .border_color = opt.border_color,
+            .content_pos = content_pos,
+            .content_size = opt.rect.size.add_value(-2 * opt.padding),
+            .allow_overflow = opt.allow_overflow,
+            .cursor = content_pos,
+            .cursor_direction = opt.cursor_direction,
         };
     }
 
-    pub fn next(self: *Cursor, size: Size) Vec {
-        const result = self.position;
+    pub fn render(self: Box) !void {
+        try gl.shader_program_set(.{ .Default = {} });
+        if (self.border_size) |border_size| {
+            if (border_size > 0) {
+                const pos = self.pos.add_value(border_size * -1);
+                const size = self.size.add_value(border_size * 2);
+                try gl.batch.draw_rect(pos.x, pos.y, size.width, size.height, self.border_color);
+                // TODO: fix this so that border works when color is Transpaernt
+            }
+        }
 
-        switch (self.direction) {
+        if (self.color) |color| {
+            try gl.batch.draw_rect(self.pos.x, self.pos.y, self.size.width, self.size.height, color);
+        }
+
+        if (!self.allow_overflow) {
+            gl.scisor_begin(self.pos, self.size);
+        }
+
+        try gl.batch.flush();
+    }
+
+    pub fn next(self: *Box, size: Size) Rect {
+        const result_pos = self.cursor;
+        switch (self.cursor_direction) {
             .Horizontal => {
-                self.position = Vec{
-                    .x = self.position.x + size.width + self.padding,
-                    .y = self.position.y,
+                self.cursor = Vec{
+                    .x = self.cursor.x + size.width + self.spacing,
+                    .y = self.cursor.y,
                 };
             },
             .Vertical => {
-                self.position = Vec{
-                    .y = self.position.y + size.height + self.padding,
-                    .x = self.position.x,
+                self.cursor = Vec{
+                    .y = self.cursor.y + size.height + self.spacing,
+                    .x = self.cursor.x,
                 };
             },
         }
-        return result;
-    }
-
-    pub fn switch_direction(self: *Cursor) void {
-        self.direction = switch (self.direction) {
-            .Horizontal => .Vertical,
-            .Vertical => .Horizontal,
-        };
-    }
-};
-
-pub const Stack = struct {
-    cursor: Cursor,
-    pos: Vec,
-    size: Size,
-    fill: Size,
-
-    pub fn init(pos: Vec, size: Size, direction: Cursor.Direction) Stack {
-        var cursor = Cursor.init(pos.x, pos.y);
-        cursor.direction = direction;
-
-        return Stack{
-            .cursor = cursor,
-            .pos = pos,
+        return Rect{
+            .pos = result_pos,
             .size = size,
-            .fill = Size{ .width = 0, .height = 0 },
         };
     }
 
-    pub fn percent_width(self: Stack, percent: f32) f32 {
-        return self.size.width * percent;
+    pub fn next_fill(self: *Box, length: f32) Rect {
+        return switch (self.cursor_direction) {
+            .Horizontal => self.next(Size{ .width = length, .height = self.content_size.height }),
+            .Vertical => self.next(Size{ .height = length, .width = self.content_size.width }),
+        };
     }
 
-    pub fn percent_height(self: Stack, percent: f32) f32 {
-        return self.size.height * percent;
-    }
-
-    pub fn next(self: *Stack, size: Size) Vec {
-        self.fill = self.fill.add(size);
-        return self.cursor.next(size);
-    }
-
-    pub fn end(_: Stack) void {
+    pub fn end(_: Box) void {
         gl.scisor_end();
     }
-
-    pub fn is_overflow(self: Stack) bool {
-        if (self.size.width < self.fill.width or self.size.height < self.fill.height) {
-            return true;
-        }
-        return false;
-    }
-
-    // TODO: alignment ?shouldit be on the cursor?
-    // alignment: Alignment = .Right,
-    //
-    // pub const Alignment = enum {
-    //     Right,
-    //     Left,
-    //     // Center, ?? center seems burtal how would do ??
-    // };
 };
 
-pub fn stack_h(src: SourceLocation, pos: Vec, size: Size, color: ?Color) !Stack {
-    _ = src;
-    const result = Stack.init(pos, size, .Horizontal);
-    const rect = Rect.init_point_size(result.pos, result.size);
-    gl.scisor_begin(rect);
-    if (color) |c| {
-        try gl.shader_program_set(.{ .Default = {} });
-        try gl.draw_rect(rect, c);
-    }
-    return result;
-}
-
-pub fn stack_v(src: SourceLocation, pos: Vec, size: Size, color: ?Color) !Stack {
-    _ = src;
-    const result = Stack.init(pos, size, .Vertical);
-    const rect = Rect.init_point_size(result.pos, result.size);
-    gl.scisor_begin(rect);
-    if (color) |c| {
-        try gl.shader_program_set(.{ .Default = {} });
-        try gl.draw_rect(rect, c);
-    }
-    return result;
+pub fn box(src: SourceLocation, opt: BoxOptions) !Box {
+    var b = Box.init(src, opt);
+    try b.render();
+    return b;
 }
 
 // TODO: use Box and BoxTheme
@@ -172,16 +176,13 @@ const ButtonOptions = struct {
     color_active: Color = Color.gray(250, 255),
 };
 
-pub fn button(src: SourceLocation, cursor: *Cursor, size: Size, opt: ButtonOptions) !bool {
-    const position = cursor.next(size);
-    const rect = Rect.init_point_size(position, size);
-    return try button_rect(src, rect, opt);
-}
+pub fn button_rect(src: std.builtin.SourceLocation, opt: BoxOptions) !bool {
+    const id = id_src(src, null);
+    const rect = opt.rect;
 
-pub fn button_rect(src: std.builtin.SourceLocation, rect: Rect, opt: ButtonOptions) !bool {
-    const id = src_id(src, null);
+    const button_options = ButtonOptions{};
 
-    var color = opt.color_default;
+    var color = button_options.color_default;
     var result = false;
 
     if (rect.contians(mouse.pos)) {
@@ -197,54 +198,49 @@ pub fn button_rect(src: std.builtin.SourceLocation, rect: Rect, opt: ButtonOptio
     const is_active = id_is_active(id);
 
     if (is_hot) {
-        color = opt.color_hot;
+        color = button_options.color_hot;
     }
 
     if (is_active) {
-        color = opt.color_active;
+        color = button_options.color_active;
     }
 
     if (is_hot and is_active and mouse.left_just_released) {
         result = true;
     }
 
+    var box_opt = opt;
+    box_opt.color = color;
     // use Box
-    try gl.shader_program_set(.{ .Default = {} });
-    try gl.draw_rect(rect, color);
+    // try gl.shader_program_set(.{ .Default = {} });
+    // try gl.draw_rect(rect, color);
+    _ = try box(src, box_opt);
     return result;
 }
 
-pub fn lerp(start: f32, stop: f32, t: f32) f32 {
-    return start + (stop - start) * t;
-}
-
-const color_background: Color = Color.gray(200, 255);
-const color_empty: Color = Color.gray(150, 255);
-const color_full: Color = Color.gray(250, 255);
-
-pub fn slider(src: std.builtin.SourceLocation, rect: Rect, value: f32) !f32 {
-    const id = src_id(src, null);
-    var result = value;
-    if (rect.contians(mouse.pos)) {
-        if (mouse.left_just_pressed) {
-            id_active = id;
-        }
-    }
-
-    if (id_is_active(id)) {
-        const y_offset = mouse.pos.y - rect.y;
-        result = y_offset / rect.height;
-        result = std.math.clamp(result, 0.0, 1.0);
-    }
-
-    try gl.shader_program_set(.{ .Default = {} });
-    try gl.draw_rect(rect, color_background);
-
-    const inner_rect = Rect.init(rect.x + 5, rect.y + 5, rect.width - 10, rect.height - 10);
-    try gl.draw_rect(inner_rect, color_empty);
-
-    const bar_rect = Rect.init(rect.x + 5, (rect.y + 5) + ((rect.height - 20) * result), rect.width - 10, 10);
-    try gl.draw_rect(bar_rect, color_full);
-
-    return result;
-}
+// pub fn slider(src: std.builtin.SourceLocation, rect: Rect, value: f32) !f32 {
+//     const id = src_id(src, null);
+//     var result = value;
+//     if (rect.contians(mouse.pos)) {
+//         if (mouse.left_just_pressed) {
+//             id_active = id;
+//         }
+//     }
+//
+//     if (id_is_active(id)) {
+//         const y_offset = mouse.pos.y - rect.y;
+//         result = y_offset / rect.height;
+//         result = std.math.clamp(result, 0.0, 1.0);
+//     }
+//
+//     try gl.shader_program_set(.{ .Default = {} });
+//     try gl.draw_rect(rect, color_background);
+//
+//     const inner_rect = Rect.init(rect.x + 5, rect.y + 5, rect.width - 10, rect.height - 10);
+//     try gl.draw_rect(inner_rect, color_empty);
+//
+//     const bar_rect = Rect.init(rect.x + 5, (rect.y + 5) + ((rect.height - 20) * result), rect.width - 10, 10);
+//     try gl.draw_rect(bar_rect, color_full);
+//
+//     return result;
+// }

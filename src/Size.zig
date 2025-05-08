@@ -16,3 +16,10 @@ pub fn add(self: Size, size: Size) Size {
         .height = self.height + size.height,
     };
 }
+
+pub fn add_value(self: Size, value: f32) Size {
+    return Size{
+        .width = self.width + value,
+        .height = self.height + value,
+    };
+}

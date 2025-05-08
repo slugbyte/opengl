@@ -3,6 +3,8 @@ const Size = @import("./Size.zig");
 const Vec = @import("./Vec.zig");
 const Mouse = @import("./Mouse.zig");
 const c = @import("./c.zig");
+const Color = @import("./Color.zig");
+const gl = @import("./gl.zig");
 
 pub const Error = error{
     GLFWInitFailed,
@@ -15,12 +17,14 @@ pub var has_resized: bool = false;
 pub var mouse: Mouse = Mouse{};
 pub var time_delta: f32 = 0;
 pub var time_last: f32 = 0;
+pub var color_background: ?Color = null;
 
 pub const WindowOptions = struct {
     size: Size = Size.init(800, 600),
     vsync: bool = true,
     opengl_version_major: c_int = 3,
     opengl_version_minor: c_int = 3,
+    color_background: ?Color = null,
 };
 
 pub fn init(title: []const u8, opt: WindowOptions) !void {
@@ -36,8 +40,13 @@ pub fn init(title: []const u8, opt: WindowOptions) !void {
         return Error.GLFWCreateWindowFailed;
     }
     size = opt.size;
+
     c.glfwMakeContextCurrent(glfw_window);
     c.glfwSwapInterval(if (opt.vsync) 1 else 0);
+
+    if (opt.color_background) |bg| {
+        color_background = bg;
+    }
 
     _ = c.glfwSetFramebufferSizeCallback(glfw_window, glfw_callback_framebuffer_resize);
     _ = c.glfwSetCursorPosCallback(glfw_window, glfw_callback_mouse_position);
@@ -64,7 +73,11 @@ pub fn frame_begin() void {
     const time_current: f32 = @as(f32, @floatCast(c.glfwGetTime())) * 1000.0;
     time_delta = time_current - time_last;
     time_last = time_current;
-    return c.glfwPollEvents();
+    c.glfwPollEvents();
+
+    if (color_background) |color| {
+        gl.clear(color);
+    }
 }
 
 pub fn frame_end() void {
