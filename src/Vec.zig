@@ -53,6 +53,13 @@ pub fn sub(self: Vec, vec: Vec) Vec {
     };
 }
 
+pub fn sub_value(self: Vec, value: f32) Vec {
+    return Vec{
+        .x = self.x - value,
+        .y = self.y - value,
+    };
+}
+
 pub fn sub_x(self: Vec, x: f32) Vec {
     return Vec{
         .x = self.x - x,

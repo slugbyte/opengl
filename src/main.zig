@@ -38,37 +38,37 @@ pub fn main() !void {
     // var show_border: bool = false;
     while (window.should_render()) {
         window.frame_begin();
-        gui.begin(window.mouse);
 
-        // const menu = try gui.box(Vec.init(0, 0), Size.init(window.size.width * 0.25, window.size.height), .{
-        var menu = try gui.box(@src(), .{
-            .rect = Rect.from(0, 0, window.size.width / 2, window.size.height / 2),
-            .color = Color.Blue,
-            .padding = 10,
-            .spacing = 10,
-            .cursor_direction = .Vertical,
-            // .cursor_align = .Center,
-            .allow_overflow = false,
-        });
-
-        _ = try gui.box(@src(), .{
-            .rect = menu.next(Size.init(menu.content_size.width, menu.content_size.height / 2 - menu.spacing / 2)),
-            .color = Color.White,
-        });
-
-        _ = try gui.box(@src(), .{
-            .rect = menu.next(Size.init(menu.content_size.width, menu.content_size.height / 2 - menu.spacing / 2)),
-            .color = Color.White,
-        });
-
-        _ = try gui.box(@src(), .{
-            .rect = menu.center_rect(Size.init(300, 300)),
-            .color = Color.Black,
-        });
-
-        menu.end();
-
-        gui.end();
+        {
+            gui.begin(window.mouse);
+            defer gui.end();
+            { // menu
+                var bg = try gui.box(@src(), .{
+                    .rect = Rect.from(0, 0, window.size.width, window.size.height),
+                    .color = Color.Blue,
+                    // .padding = 10,
+                    .spacing = 10,
+                    .cursor_direction = .Vertical,
+                    // .cursor_align = .Center,
+                    .allow_overflow = false,
+                });
+                defer bg.end();
+                { // hud left
+                    var hud_left = try gui.box(@src(), .{
+                        .rect = bg.next_fill(.{ .Scale = 0.25 }),
+                        .color = Color.White,
+                    });
+                    defer hud_left.end();
+                }
+                { // hud left
+                    var hud_left = try gui.box(@src(), .{
+                        .rect = bg.next_fill(.{ .Scale = 0.75 }),
+                        .color = Color.White,
+                    });
+                    defer hud_left.end();
+                }
+            }
+        }
         window.frame_end();
     }
 

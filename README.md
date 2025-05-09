@@ -19,7 +19,6 @@ tryin to learn me some opengl
   * add things based on grids?
   * add things based on %
   * debug mode (random borders, random fills)
-  * alignment (top, bottom, left, right)
   * wrap?
   * style 
     * color-hot

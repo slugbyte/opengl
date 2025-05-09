@@ -33,6 +33,11 @@ pub const CursorAlign = enum {
     Center,
 };
 
+pub const Length = union(enum) {
+    Pixel: f32,
+    Scale: f32,
+};
+
 /// NOTE: borders are on outside because if you toggle them it wont effect internal layout
 // can this use Rect funcs if has pos and size? (like an interfaces)
 // is it better to have a rect
@@ -157,11 +162,62 @@ pub fn next(self: *Box, size: Size) Rect {
     };
 }
 
-pub fn next_fill(self: *Box, length: f32) Rect {
+pub fn space_x(self: *Box, amount: f32) void {
+    self.cursor_pos.x += amount;
+}
+
+pub fn space_y(self: *Box, amount: f32) void {
+    self.cursor_pos.x += amount;
+}
+
+pub fn width_percent(self: *Box, percent: f32) f32 {
     return switch (self.cursor_direction) {
-        .Horizontal => self.next(Size{ .width = length, .height = self.content_size.height }),
-        .Vertical => self.next(Size{ .height = length, .width = self.content_size.width }),
+        .Horizontal => self.content_size.width * percent - self.spacing * percent,
+        .Vertical => self.content_size.width * percent,
     };
+}
+
+pub fn length_width(self: Box, length: Length) f32 {
+    return switch (length) {
+        .Scale => |value| value * self.content_size.width,
+        .Pixel => |value| value,
+    };
+}
+
+pub fn length_height(self: Box, length: Length) f32 {
+    return switch (length) {
+        .Scale => |value| value * self.content_size.height,
+        .Pixel => |value| value,
+    };
+}
+
+pub fn height_percent(self: Box, percent: f32) f32 {
+    return switch (self.cursor_direction) {
+        .Vertical => self.content_size.height * percent - self.spacing * percent,
+        .Horizontal => self.content_size.width * percent,
+    };
+}
+
+pub fn next_fill(self: *Box, length: Length) Rect {
+    return switch (self.cursor_direction) {
+        .Horizontal => {
+            return self.next(Size{ .width = self.length_width(length), .height = self.content_size.height });
+        },
+        .Vertical => self.next(Size{ .height = self.length_height(length), .width = self.content_size.width }),
+    };
+}
+
+pub fn next_length(self: *Box, width: Length, height: Length) Rect {
+    const width_value = switch (width) {
+        .Pixel => |value| value,
+        .Scale => |value| self.content_size.width * value,
+    };
+    const height_value = switch (height) {
+        .Pixel => |value| value,
+        .Scale => |value| self.content_size.height * value,
+    };
+
+    return self.next(Size{ .width = width_value, .height = height_value });
 }
 
 pub fn center_rect(self: Box, size: Size) Rect {
