@@ -18,8 +18,6 @@ const Vec = @import("./Vec.zig");
 const Size = @import("./Size.zig");
 const Rect = @import("./Rect.zig");
 const gui = @import("gui.zig");
-const px = @import("./Box.zig").px;
-const sc = @import("./Box.zig").sc;
 
 const IMAGE_BING = @embedFile("./asset/bing.jpg");
 
@@ -40,34 +38,33 @@ pub fn main() !void {
     // var show_border: bool = false;
     while (window.should_render()) {
         window.frame_begin();
-
         {
             gui.begin(window.mouse);
             defer gui.end();
             { // menu
                 var bg = try gui.box(@src(), .{
                     .rect = Rect.from(0, 0, window.size.width, window.size.height),
-                    .color = Color.Blue,
                     // .padding = 10,
-                    .spacing = 10,
+                    .cursor_spacing = 10,
                     .cursor_direction = .Vertical,
                     // .cursor_align = .Center,
                     .allow_overflow = false,
+                    .color = Color.Blue,
                 });
                 defer bg.end();
                 { // hud left
                     var hud_left = try gui.box(@src(), .{
-                        .rect = bg.next_fill(sc(0.25)),
+                        .rect = bg.next_fill(gui.scale(0.25)),
                         .color = Color.White,
                     });
                     defer hud_left.end();
                 }
                 { // hud left
-                    var hud_left = try gui.box(@src(), .{
-                        .rect = bg.next_fill(px(23)),
-                        .color = Color.White,
-                    });
-                    defer hud_left.end();
+                    if (try gui.button_rect(@src(), .{
+                        .rect = bg.next_fill(gui.pixel(23)),
+                    })) {
+                        std.debug.print("test\n", .{});
+                    }
                 }
             }
         }

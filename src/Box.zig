@@ -6,20 +6,22 @@ const Rect = @import("./Rect.zig");
 const Color = @import("./Color.zig");
 const id_src = @import("id.zig").src;
 const SourceLocation = std.builtin.SourceLocation;
-
+const Length = @import("length.zig").Length;
 const Box = @This();
 
 pub const BoxOptions = struct {
     rect: Rect,
-    color: ?Color = null,
+    name: ?[]const u8 = null,
+    item_index: ?usize = null,
     padding: f32 = 0,
-    spacing: f32 = 0,
+    color: ?Color = null,
     border_size: ?f32 = null,
     border_color: Color = Color.Black,
     allow_overflow: bool = true,
-    item_index: ?usize = null,
     cursor_align: CursorAlign = .Head,
     cursor_direction: CursorDirection = .Horizontal,
+    cursor_spacing: f32 = 0,
+    pallet: ?BoxPallet = null,
 };
 
 pub const CursorDirection = enum {
@@ -33,36 +35,44 @@ pub const CursorAlign = enum {
     Center,
 };
 
-pub const Length = union(enum) {
-    Pixel: f32,
-    Scale: f32,
+pub const BoxPallet = struct {
+    bg_default: ?Color = null,
+    bg_hot: ?Color = null,
+    bg_active: ?Color = null,
+    bg_disable: ?Color = null,
+    bg_error: ?Color = null,
+
+    fg_default: ?Color = null,
+    fg_hot: ?Color = null,
+    fg_active: ?Color = null,
+    fg_disable: ?Color = null,
+    fg_error: ?Color = null,
+
+    border_default: ?Color = null,
+    border_hot: ?Color = null,
+    border_active: ?Color = null,
+    border_disable: ?Color = null,
+    border_error: ?Color = null,
 };
-
-pub inline fn px(value: f32) Length {
-    return .{ .Pixel = value };
-}
-
-pub inline fn sc(value: f32) Length {
-    return .{ .Scale = value };
-}
 
 /// NOTE: borders are on outside because if you toggle them it wont effect internal layout
 // can this use Rect funcs if has pos and size? (like an interfaces)
 // is it better to have a rect
 id: u32,
+name: ?[]const u8,
 pos: Vec,
 size: Size,
-color: ?Color,
 padding: f32,
-spacing: f32,
+color: ?Color,
 border_size: ?f32,
 border_color: Color,
 content_size: Size,
 content_pos: Vec,
 allow_overflow: bool,
 cursor_pos: Vec,
-cursor_direction: CursorDirection,
+cursor_spacing: f32,
 cursor_align: CursorAlign,
+cursor_direction: CursorDirection,
 
 pub fn init(src: SourceLocation, opt: BoxOptions) Box {
     const content_pos = opt.rect.pos.add_value(opt.padding);
@@ -83,18 +93,19 @@ pub fn init(src: SourceLocation, opt: BoxOptions) Box {
 
     return Box{
         .id = id_src(src, opt.item_index),
+        .name = opt.name,
         .pos = opt.rect.pos,
         .size = opt.rect.size,
-        .color = opt.color,
         .padding = opt.padding,
-        .spacing = opt.spacing,
         .border_size = opt.border_size,
         .border_color = opt.border_color,
+        .color = opt.color,
         .content_pos = content_pos,
         .content_size = content_size,
         .allow_overflow = opt.allow_overflow,
         .cursor_pos = cursor_pos,
         .cursor_align = opt.cursor_align,
+        .cursor_spacing = opt.cursor_spacing,
         .cursor_direction = opt.cursor_direction,
     };
 }
@@ -139,25 +150,25 @@ pub fn next(self: *Box, size: Size) Rect {
         .Horizontal => switch (self.cursor_align) {
             .Head => {
                 self.cursor_pos = Vec{
-                    .x = self.cursor_pos.x + size.width + self.spacing,
+                    .x = self.cursor_pos.x + size.width + self.cursor_spacing,
                     .y = self.cursor_pos.y,
                 };
             },
             .Tail => {
-                self.cursor_pos = result_pos.add_x(-1.0 * self.spacing);
+                self.cursor_pos = result_pos.add_x(-1.0 * self.cursor_spacing);
             },
             .Center => {},
         },
         .Vertical => switch (self.cursor_align) {
             .Head => {
                 self.cursor_pos = Vec{
-                    .y = self.cursor_pos.y + size.height + self.spacing,
+                    .y = self.cursor_pos.y + size.height + self.cursor_spacing,
                     .x = self.cursor_pos.x,
                 };
             },
             .Tail => {
                 self.cursor_pos = Vec{
-                    .y = self.cursor_pos.y - size.height - self.spacing,
+                    .y = self.cursor_pos.y - size.height - self.cursor_spacing,
                     .x = self.cursor_pos.x,
                 };
             },
@@ -180,7 +191,7 @@ pub fn space_y(self: *Box, amount: f32) void {
 
 pub fn width_percent(self: *Box, percent: f32) f32 {
     return switch (self.cursor_direction) {
-        .Horizontal => self.content_size.width * percent - self.spacing * percent,
+        .Horizontal => self.content_size.width * percent - self.cursor_spacing * percent,
         .Vertical => self.content_size.width * percent,
     };
 }
@@ -201,7 +212,7 @@ pub fn length_height(self: Box, length: Length) f32 {
 
 pub fn height_percent(self: Box, percent: f32) f32 {
     return switch (self.cursor_direction) {
-        .Vertical => self.content_size.height * percent - self.spacing * percent,
+        .Vertical => self.content_size.height * percent - self.cursor_spacing * percent,
         .Horizontal => self.content_size.width * percent,
     };
 }

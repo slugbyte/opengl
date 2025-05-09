@@ -1,15 +1,24 @@
 const std = @import("std");
 const gl = @import("./gl.zig");
-const Rect = @import("./Rect.zig");
-const Vec = @import("./Vec.zig");
-const Size = @import("./Size.zig");
 const Mouse = @import("./Mouse.zig");
-const Color = @import("./Color.zig");
-const IMButton = @This();
-const id_src = @import("id.zig").src;
 const SourceLocation = std.builtin.SourceLocation;
 
-const Box = @import("./Box.zig");
+pub const id_src = @import("id.zig").src;
+
+const length = @import("./length.zig");
+pub const Length = length.Length;
+pub const pixel = length.pixel;
+pub const scale = length.scale;
+
+pub const Size = @import("./Size.zig");
+pub const Vec = @import("./Vec.zig");
+pub const Rect = @import("./Vec.zig");
+
+pub const Color = @import("./Color.zig");
+
+pub const Box = @import("./Box.zig");
+pub const BoxStyle = Box.BoxPallet;
+pub const BoxOptions = Box.BoxOptions;
 
 pub const fnv = std.hash.Fnv1a_32;
 
@@ -50,20 +59,23 @@ pub fn box(src: SourceLocation, opt: Box.BoxOptions) !Box {
     return b;
 }
 
-// TODO: use Box and BoxTheme
-const ButtonOptions = struct {
-    color_default: Color = Color.gray(200, 255),
-    color_hot: Color = Color.gray(150, 255),
-    color_active: Color = Color.gray(250, 255),
+const button_pallet_default = Box.BoxPallet{
+    .bg_default = Color.gray(200, 255),
+    .bg_hot = Color.gray(150, 255),
+    .bg_active = Color.gray(250, 255),
 };
 
 pub fn button_rect(src: std.builtin.SourceLocation, opt: Box.BoxOptions) !bool {
     const id = id_src(src, null);
     const rect = opt.rect;
 
-    const button_options = ButtonOptions{};
+    const pallet = opt.pallet orelse button_pallet_default;
 
-    var color = button_options.color_default;
+    if (pallet.bg_default == null or pallet.bg_hot == null or pallet.bg_active == null) {
+        @panic("button requires pallet with color_default color_hot and color_active");
+    }
+
+    var color = pallet.bg_default.?;
     var result = false;
 
     if (rect.contians(mouse.pos)) {
@@ -79,11 +91,11 @@ pub fn button_rect(src: std.builtin.SourceLocation, opt: Box.BoxOptions) !bool {
     const is_active = id_is_active(id);
 
     if (is_hot) {
-        color = button_options.color_hot;
+        color = pallet.bg_hot.?;
     }
 
     if (is_active) {
-        color = button_options.color_active;
+        color = pallet.bg_active.?;
     }
 
     if (is_hot and is_active and mouse.left_just_released) {
