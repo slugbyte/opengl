@@ -18,6 +18,8 @@ const Vec = @import("./Vec.zig");
 const Size = @import("./Size.zig");
 const Rect = @import("./Rect.zig");
 const gui = @import("gui.zig");
+const px = @import("./Box.zig").px;
+const sc = @import("./Box.zig").sc;
 
 const IMAGE_BING = @embedFile("./asset/bing.jpg");
 
@@ -55,14 +57,14 @@ pub fn main() !void {
                 defer bg.end();
                 { // hud left
                     var hud_left = try gui.box(@src(), .{
-                        .rect = bg.next_fill(.{ .Scale = 0.25 }),
+                        .rect = bg.next_fill(sc(0.25)),
                         .color = Color.White,
                     });
                     defer hud_left.end();
                 }
                 { // hud left
                     var hud_left = try gui.box(@src(), .{
-                        .rect = bg.next_fill(.{ .Scale = 0.75 }),
+                        .rect = bg.next_fill(px(23)),
                         .color = Color.White,
                     });
                     defer hud_left.end();

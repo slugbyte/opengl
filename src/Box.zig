@@ -38,6 +38,14 @@ pub const Length = union(enum) {
     Scale: f32,
 };
 
+pub inline fn px(value: f32) Length {
+    return .{ .Pixel = value };
+}
+
+pub inline fn sc(value: f32) Length {
+    return .{ .Scale = value };
+}
+
 /// NOTE: borders are on outside because if you toggle them it wont effect internal layout
 // can this use Rect funcs if has pos and size? (like an interfaces)
 // is it better to have a rect
