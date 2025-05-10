@@ -114,4 +114,15 @@ fn glfw_callback_mouse_button(_: ?*c.GLFWwindow, button: c_int, action: c_int, _
             mouse.left_just_released = true;
         }
     }
+    if (button == c.GLFW_MOUSE_BUTTON_RIGHT) {
+        if (action == c.GLFW_PRESS) {
+            mouse.right_pressed = true;
+            mouse.right_just_pressed = true;
+        }
+
+        if (action == c.GLFW_RELEASE) {
+            mouse.right_pressed = false;
+            mouse.right_just_released = true;
+        }
+    }
 }

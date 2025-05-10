@@ -2,9 +2,9 @@
 
 tryin to learn me some opengl
 
-
-
 ## TODO
+* make slider a "component"
+  * use struct for state
 * math
   * 4x4 matrix 
     * linear
@@ -20,16 +20,6 @@ tryin to learn me some opengl
   * add things based on %
   * debug mode (random borders, random fills)
   * wrap?
-  * style 
-    * color-hot
-    * color-active
-    * color-disable
-    * color-error
-    * color-border
-    * // color-a
-    * // color-b
-    * // color-c
-    * // color-d
 * inputs
   * button
   * pulse (instant button)
@@ -38,10 +28,11 @@ tryin to learn me some opengl
   * text
   * textarea?
   * text-arrow-key-keyboard
-
+* no border\_color just color\_border
 * render fonts
 * worker thread pool for async tasks
   * file io
+* save an load pallet
 * Box? a nice way to render a Rect with a Theme?
   * width 
   * height

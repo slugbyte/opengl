@@ -7,8 +7,24 @@ g: u8 = 0,
 b: u8 = 0,
 a: u8 = 255,
 
+pub const ColorFloat = struct {
+    r: f32 = 0,
+    g: f32 = 0,
+    b: f32 = 0,
+    a: f32 = 0,
+};
+
 pub fn init(r: u8, g: u8, b: u8, a: u8) Color {
     return Color{ .r = r, .g = g, .b = b, .a = a };
+}
+
+pub fn init_float(r: f32, g: f32, b: f32, a: f32) Color {
+    return Color{
+        .r = @intFromFloat(r * 255),
+        .g = @intFromFloat(g * 255),
+        .b = @intFromFloat(b * 255),
+        .a = @intFromFloat(a * 255),
+    };
 }
 
 pub fn init_hexcode(comptime hexcode: []const u8, alpha: u8) Color {
@@ -32,15 +48,17 @@ pub fn init_hexcode(comptime hexcode: []const u8, alpha: u8) Color {
     };
 }
 
-pub const White = Color{
-    .r = 255,
-    .g = 255,
-    .b = 255,
-    .a = 255,
-};
+pub fn to_float(self: Color) ColorFloat {
+    return ColorFloat{
+        .r = @as(f32, @floatFromInt(self.r)) / 255.0,
+        .g = @as(f32, @floatFromInt(self.g)) / 255.0,
+        .b = @as(f32, @floatFromInt(self.b)) / 255.0,
+        .a = @as(f32, @floatFromInt(self.a)) / 255.0,
+    };
+}
 
+pub const White = Color{ .r = 255, .g = 255, .b = 255, .a = 255 };
 pub const Black = Color{};
-
 pub const Clear = Color.init(0, 0, 0, 0);
 
 pub const Red = Color.init_hexcode("#f21f38", 255);

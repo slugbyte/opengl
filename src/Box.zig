@@ -6,7 +6,6 @@ const Rect = @import("./Rect.zig");
 const Color = @import("./Color.zig");
 const id_src = @import("id.zig").src;
 const SourceLocation = std.builtin.SourceLocation;
-const Length = @import("length.zig").Length;
 const Box = @This();
 
 pub const BoxOptions = struct {
@@ -181,62 +180,45 @@ pub fn next(self: *Box, size: Size) Rect {
     };
 }
 
+pub fn next_from(self: *Box, width: f32, height: f32) Rect {
+    return self.next(Size{ .width = width, .height = height });
+}
+
+pub fn next_fill(self: *Box, length: f32) Rect {
+    return switch (self.cursor_direction) {
+        .Horizontal => {
+            return self.next(Size{ .width = length, .height = self.content_size.height });
+        },
+        .Vertical => self.next(Size{ .height = length, .width = self.content_size.width }),
+    };
+}
+
+pub fn cursor_reset(self: *Box) void {
+    self.cursor_pos = self.content_pos;
+}
+
 pub fn space_x(self: *Box, amount: f32) void {
     self.cursor_pos.x += amount;
 }
 
 pub fn space_y(self: *Box, amount: f32) void {
-    self.cursor_pos.x += amount;
+    self.cursor_pos.y += amount;
 }
 
-pub fn width_percent(self: *Box, percent: f32) f32 {
-    return switch (self.cursor_direction) {
-        .Horizontal => self.content_size.width * percent - self.cursor_spacing * percent,
-        .Vertical => self.content_size.width * percent,
-    };
+pub fn scale_w(self: Box, scale: f32) f32 {
+    return self.size.width * scale;
 }
 
-pub fn length_width(self: Box, length: Length) f32 {
-    return switch (length) {
-        .Scale => |value| value * self.content_size.width,
-        .Pixel => |value| value,
-    };
+pub fn scale_h(self: Box, scale: f32) f32 {
+    return self.size.height * scale;
 }
 
-pub fn length_height(self: Box, length: Length) f32 {
-    return switch (length) {
-        .Scale => |value| value * self.content_size.height,
-        .Pixel => |value| value,
-    };
+pub fn scale_cw(self: Box, scale: f32) f32 {
+    return self.content_size.width * scale;
 }
 
-pub fn height_percent(self: Box, percent: f32) f32 {
-    return switch (self.cursor_direction) {
-        .Vertical => self.content_size.height * percent - self.cursor_spacing * percent,
-        .Horizontal => self.content_size.width * percent,
-    };
-}
-
-pub fn next_fill(self: *Box, length: Length) Rect {
-    return switch (self.cursor_direction) {
-        .Horizontal => {
-            return self.next(Size{ .width = self.length_width(length), .height = self.content_size.height });
-        },
-        .Vertical => self.next(Size{ .height = self.length_height(length), .width = self.content_size.width }),
-    };
-}
-
-pub fn next_length(self: *Box, width: Length, height: Length) Rect {
-    const width_value = switch (width) {
-        .Pixel => |value| value,
-        .Scale => |value| self.content_size.width * value,
-    };
-    const height_value = switch (height) {
-        .Pixel => |value| value,
-        .Scale => |value| self.content_size.height * value,
-    };
-
-    return self.next(Size{ .width = width_value, .height = height_value });
+pub fn scale_ch(self: Box, scale: f32) f32 {
+    return self.content_size.height * scale;
 }
 
 pub fn center_rect(self: Box, size: Size) Rect {
@@ -249,6 +231,6 @@ pub fn center_rect(self: Box, size: Size) Rect {
     };
 }
 
-pub fn end(_: Box) void {
+pub fn end_overflow_scisor(_: Box) void {
     gl.scisor_end();
 }
